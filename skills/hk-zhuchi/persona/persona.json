@@ -1,0 +1,50 @@
+{
+  "name": "短发男生数字人（本人音色 huakan · 以本人照片为准）",
+  "renoise": {
+    "reference_material": "assets/host_me_look.jpg",
+    "note": "定妆照由用户本人正脸照（assets/host_me_ref.jpg）经 MiniMax image-01 + subject_reference 生成；七视图在 assets/host_me_7view.jpg，单视图在 assets/host_me_views/。换人：改 reference_material 指向新的定妆照。"
+  },
+  "look": "年轻东亚男性，约 170cm，黑色短寸（两侧推短）、无胡须，橄榄绿亨利领短袖（三个纽扣）+ 深灰长裤 + 白色板鞋，纯白无缝背景，室内柔和均匀光线，竖屏半身构图",
+  "voice": {
+    "engine": "voxcpm-huakan",
+    "desc": "warm, steady, confident male voice around 35 years old, natural pace",
+    "speed_cps": 5.3,
+    "alt_clone": "本机 VoxCPM2 克隆音色 huakan（http://127.0.0.1:8808/v1），由 huakan-tts skill 管理"
+  },
+  "model": {
+    "name": "minimax-h3",
+    "ratio": "9:16",
+    "full_shot_resolution": "720p",
+    "pip_shot_resolution": "480p",
+    "max_seconds": 9,
+    "price_per_second": {
+      "720p": 0.4,
+      "480p": 0.4
+    },
+    "note": "本机 MiniMax H3 单段上限约 10 秒（17k+5 帧网格 @24fps）。price_per_second 是 MiniMax H3-Highspeed 768P 的元/秒。"
+  },
+  "acts": {
+    "full": "warm eye contact, expressive face, natural hand gestures",
+    "pip": "calm explaining tone, small nods, occasionally glancing down as if reading a screen, small pointing gestures",
+    "vlog": "relaxed lifestyle vlogger sharing a favorite tool, natural small head tilts and nods, one hand comes up briefly in a casual gesture",
+    "depth": "medium shot with generous headroom and plain background visible on both sides of the head and shoulders (for text-behind-subject graphics), calm confident delivery"
+  },
+  "prompt_template": "Use the exact same adult Chinese man in <Picture 1> as the single presenter. Preserve his facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion, no drift. Preserve his recognizable facial geometry, short black crew-cut hair, age, skin tone, and the olive-green short-sleeve henley shirt with a three-button placket. He stands upright facing the camera in a MEDIUM SHOT framed from the mid-chest up, with generous empty headroom above his head, against a flat seamless pure white (#FFFFFF) background under even soft lighting. He is presenting to the viewer: warm eye contact, expressive face. His hands and upper body move clearly and continuously while he talks — he repeatedly raises one hand to chest height with an open palm to make a point, lowers it, and his shoulders and torso shift naturally; at least one hand gesture is clearly visible in every sentence, the arms are never still. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and subtle head nods. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes, camera movement or extra people.",
+  "disclosure": "内容由 AI 数字人演绎",
+  "other_hosts": {
+    "me": {
+      "name": "用户本人数字人（藏青 polo）",
+      "reference_material": "assets/host_me_polo.jpg",
+      "asset": "assets/host_me_polo.jpg",
+      "ratio": "16:9",
+      "note": "上游仓库没有带这张图，换成用户自己有权使用的正面照即可；本机音色用 huakan。",
+      "voice": "warm, steady, confident male voice around 35 years old, natural pace",
+      "prompt_template": "The man in {ref} talks straight to the camera, same framing, gray studio backdrop, navy polo shirt, glasses and soft lighting as the reference, like a friendly tech blogger {purpose}: {act}. Locked-off camera, no zoom. He speaks {language}, clearly lip-synced, in a {voice}:\n“{line}”\nSound: only his voice and quiet room tone, no music, no subtitles, no captions, no on-screen text of any kind."
+    }
+  },
+  "languages_tested": {
+    "zh": "100%",
+    "note": "本机 H3 + VoxCPM 组合只实测过普通话；外语段需要先确认口型锚定效果。"
+  },
+  "prompt_big": "Use the exact same adult Chinese man in <Picture 1> as the single presenter. Preserve his facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion, no drift. Preserve his recognizable facial geometry, short black crew-cut hair, age, skin tone, and the olive-green short-sleeve henley shirt with a three-button placket. He stands upright facing the camera in a MEDIUM SHOT framed from the mid-chest up, with generous empty headroom above his head, against a flat seamless pure white (#FFFFFF) background under even soft lighting. He is presenting to the viewer: warm eye contact, expressive face. His hands and upper body move clearly and continuously while he talks — he raises one open hand to chest height to emphasize a point, lowers it, then brings both hands up briefly with palms open, and his shoulders and torso shift naturally with the delivery; the gestures are fully visible in frame. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and subtle head nods. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes, camera movement or extra people."
+}

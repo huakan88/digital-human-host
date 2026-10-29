@@ -1,0 +1,29 @@
+{
+  "_comment": "hk主持 · 本机后端配置。同名环境变量优先。",
+  "tts_backend": "voxcpm",
+  "tts_voice": "female-shaonv",
+  "tts_model": "speech-2.8-hd",
+  "tts_speed": 0.85,
+  "voxcpm_base": "http://127.0.0.1:8808/v1",
+  "voxcpm_voice": "huakan",
+  "minimax_base": "https://api.minimaxi.com/v1",
+  "image_model": "image-01",
+  "cloud_h3_model": "MiniMax-H3-Highspeed",
+  "cloud_h3_resolution": "768P",
+  "h3_root": "E:/minimax H3",
+  "width": 576,
+  "height": 1024,
+  "steps": 4,
+  "mode": "turbo",
+  "materials": {
+    "material:329814": {
+      "file": "assets/host_me_look.jpg"
+    },
+    "assets/host_me_look.jpg": {
+      "file": "assets/host_me_look.jpg"
+    }
+  },
+  "h3_low_vram": false,
+  "h3_steps": 4,
+  "merge_seconds": 13
+}

@@ -1,0 +1,31 @@
+{
+  "_comment": "vivi主持 · 本机后端配置。引擎在 hk-zhuchi/scripts（HK_PRESET 指向本目录）。",
+  "tts_backend": "doubao",
+  "_tts_backend": "doubao = 豆包（Vivi 2.0）；voxcpm = 本机克隆音色 huakan；minimax = 云端 speech-2.8",
+  "doubao_speaker": "zh_female_vv_uranus_bigtts",
+  "_doubao_speaker": "Vivi 2.0。备选：zh_female_qingchezizi_uranus_bigtts（清澈梓梓）、zh_female_qingchezizi",
+  "doubao_resource": "seed-tts-2.0",
+  "doubao_rate": 20,
+  "_doubao_rate": "speech_rate 档位；koubo-video 横版实测 6.5 字/秒在 RATE=15 左右，竖版宠物系列用 0–10",
+  "minimax_base": "https://api.minimaxi.com/v1",
+  "image_model": "image-01",
+  "cloud_h3_model": "MiniMax-H3-Highspeed",
+  "cloud_h3_resolution": "768P",
+  "h3_root": "E:/minimax H3",
+  "width": 576,
+  "height": 1024,
+  "_size": "9:16 竖屏，576x1024（宽高都要 32 的倍数）。不要降到 384x576：脸会崩、鼻头大、口型发糊",
+  "steps": 4,
+  "mode": "turbo",
+  "free_vram_for_h3": true,
+  "_free_vram_for_h3": "出画前停掉本机 TTS（占 ~5.7GB 显存），出完再拉回来",
+  "materials": {
+    "assets/host_look.jpg": {
+      "file": "assets/host_look.jpg"
+    }
+  },
+  "h3_low_vram": false,
+  "h3_steps": 3,
+  "merge_seconds": 10,
+  "_merge_note": "超过 ~300 帧（12.5 秒）会超出 8GB 显存，注意力换页，单步从 30 秒涨到 900 秒"
+}

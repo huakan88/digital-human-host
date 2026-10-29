@@ -1,0 +1,39 @@
+{
+  "name": "白背心数字人（Vivi 主持）",
+  "renoise": {
+    "reference_material": "assets/host_look.jpg",
+    "note": "形象取自 digital-human-koubo 上游项目的「白背心数字人」定妆照（assets/avatar_ref.jpg），本机直接喂给 H3，不需要 Renoise material id。"
+  },
+  "look": "年轻东亚女性，黑色长发带脸侧碎发，白色罗纹背心，竖屏自拍构图（手机举在身前、手臂入画），室内自然光，约 165cm",
+  "voice": {
+    "engine": "doubao-vivi2",
+    "desc": "warm, friendly female voice, clear and patient but lively, natural pace",
+    "speed_cps": 6.3,
+    "alt_clone": "豆包 Vivi 2.0 zh_female_vv_uranus_bigtts（seed-tts-2.0）；备选清澈梓梓 zh_female_qingchezizi_uranus_bigtts"
+  },
+  "model": {
+    "name": "minimax-h3",
+    "ratio": "9:16",
+    "full_shot_resolution": "720p",
+    "pip_shot_resolution": "480p",
+    "max_seconds": 9,
+    "price_per_second": {
+      "720p": 0.4,
+      "480p": 0.4
+    },
+    "note": "本机 MiniMax H3 单段上限约 10 秒（17k+5 帧网格 @24fps）。"
+  },
+  "acts": {
+    "full": "warm eye contact, expressive face, natural hand gestures entering the frame",
+    "pip": "calm explaining tone, small nods, occasionally glancing down as if reading a screen, small pointing gestures",
+    "vlog": "relaxed lifestyle vlogger sharing a favorite tool, natural small head tilts and nods, one hand comes up briefly in a casual gesture",
+    "depth": "medium shot with generous headroom and plain background visible on both sides of the head and shoulders (for text-behind-subject graphics), calm confident delivery"
+  },
+  "prompt_template": "Use the exact same adult Chinese woman in <Picture 1> as the single presenter. Preserve her facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion, no drift. Preserve her recognizable facial geometry, long black hair with wispy strands framing her face, age, skin tone, and the white ribbed tank top. She holds the phone at arm's length and talks straight into her own front camera, same selfie framing, lighting and outfit as the reference, like a friendly Chinese tech vlogger {purpose}: {act}. Handheld selfie feel with only a very slight natural sway. Framed from the mid-chest up, so her hands, forearms and shoulders move naturally inside the frame. Her hands and upper body move clearly and continuously while she talks — she repeatedly raises one hand to chest height with an open palm to make a point, lowers it, and her shoulders and torso shift naturally; at least one hand gesture is clearly visible in every sentence, the arms are never still. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and small expression changes. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes or extra people.",
+  "disclosure": "内容由 AI 数字人演绎",
+  "other_hosts": {},
+  "languages_tested": {
+    "zh": "100%"
+  },
+  "prompt_big": "Use the exact same adult Chinese woman in <Picture 1> as the single presenter. Preserve her facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion, no drift. Preserve her recognizable facial geometry, long black hair with wispy strands framing her face, age, skin tone, and the white ribbed tank top. She holds the phone at arm's length and talks straight into her own front camera, same selfie framing, lighting and outfit as the reference, like a friendly Chinese tech vlogger {purpose}: {act}. Handheld selfie feel with only a very slight natural sway. Framed from the mid-chest up, with generous empty headroom above her head, so her hands, forearms and shoulders move naturally inside the frame. Her hands and upper body move clearly and continuously while she talks — she raises one open hand to chest height to emphasize a point, lowers it, then brings both hands up briefly with palms open, and her shoulders and torso shift naturally with the delivery; the gestures are fully visible in frame. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and small expression changes. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes or extra people."
+}
