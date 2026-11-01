@@ -1,4 +1,4 @@
-# DELIVERY · hypit 竖版 · 一天一个 GitHub · 终稿（H3 真对口）
+# DELIVERY · vivi-zhuchi 竖版 · 选题 hypit（一天一个 GitHub）· 终稿（H3 真对口）
 
 写于：2026-10-31 16:19 America/Adak (HDT)
 
@@ -14,6 +14,7 @@
 | 工程 | `/workspace/hypit-vertical-2026-10-31/` |
 | 渲出原稿 | `/workspace/hypit-vertical-2026-10-31/out/hypit-vertical.mp4` |
 | **主交付（loudnorm）** | `/workspace/hypit-vertical-2026-10-31/out/hypit-vertical.norm.mp4` |
+| **仓库成片** | `deliveries/2026-10-31-vivi-zhuchi/deliverable/vivi-zhuchi-vertical.mp4` |
 | 时长 | **93.50s**（约 **1:33.5**；timeline 93.411s） |
 | 分辨率 | **1080×1920** · **30fps** · h264 + aac |
 | 响度（norm） | **−16.1 LUFS** · Peak **−2.4 dBFS**（目标 −16 / ≤−2） |

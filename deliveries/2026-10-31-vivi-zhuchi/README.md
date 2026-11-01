@@ -1,9 +1,9 @@
-# Vivi 主持 · hypit 竖版（2026-10-31）
+# vivi-zhuchi 竖版（2026-10-31）
 
-给另一个 Grok / 产线复用的交付包。
+给另一个 Grok / 产线复用的交付包。选题：hypit（一天一个 GitHub）。
 
 ## 成片
-- `deliverable/hypit-vertical-vivi-host.mp4` — 竖版 9:16 · ≈93.5s · Vivi 出镜真对口（本机 H3）· 响度约 −16.1 LUFS
+- `deliverable/vivi-zhuchi-vertical.mp4` — 竖版 9:16 · ≈93.5s · Vivi 出镜真对口（本机 H3）· 响度约 −16.1 LUFS
 - 原版高码率备：Gofile https://gofile.io/d/su4w6dwL
 
 ## 定妆（硬规则）

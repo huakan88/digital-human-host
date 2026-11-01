@@ -58,6 +58,6 @@ deliveries/           已过眼成片包（定妆 + 口播 + mp4），给另一�
 
 | 日期 | 包 | 成片 |
 |---|---|---|
-| 2026-10-31 | [hypit · Vivi 主持竖版](deliveries/2026-10-31-hypit-vivi-vertical/) | [`deliverable/hypit-vertical-vivi-host.mp4`](deliveries/2026-10-31-hypit-vivi-vertical/deliverable/hypit-vertical-vivi-host.mp4) |
+| 2026-10-31 | [vivi-zhuchi 竖版](deliveries/2026-10-31-vivi-zhuchi/)（选题 hypit） | [`deliverable/vivi-zhuchi-vertical.mp4`](deliveries/2026-10-31-vivi-zhuchi/deliverable/vivi-zhuchi-vertical.mp4) |
 
 用法、定妆锁和过眼记录写在该包的 `README.md`。
