@@ -51,4 +51,13 @@ python <skill>/scripts/patch_koubo_episode.py <koubo工程>
 ```
 skills/hk-zhuchi/     引擎 + 短发男生预设
 skills/vivi-zhuchi/   白背心女性预设（共用引擎）
+deliveries/           已过眼成片包（定妆 + 口播 + mp4），给另一个 Grok 复用
 ```
+
+## 交付包
+
+| 日期 | 包 | 成片 |
+|---|---|---|
+| 2026-10-31 | [hypit · Vivi 主持竖版](deliveries/2026-10-31-hypit-vivi-vertical/) | [`deliverable/hypit-vertical-vivi-host.mp4`](deliveries/2026-10-31-hypit-vivi-vertical/deliverable/hypit-vertical-vivi-host.mp4) |
+
+用法、定妆锁和过眼记录写在该包的 `README.md`。

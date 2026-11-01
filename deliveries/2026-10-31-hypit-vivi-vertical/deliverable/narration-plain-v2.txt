@@ -1,0 +1,23 @@
+今天继续「一天一个 GitHub」。
+
+打开仓库 hypit-ai 的 hypit——两万七千多星，给 Claude Code、Codex 这类 Agent，装一套做视频的语言和系统。
+
+先看结果。这是官方示例：足球 Tier List「GOAT DEBATE」——同一套结构，三条 clone 变体，换主持、换排名，都能再出一条。
+
+官方写总成本大约一块一毛五美金——约一点一五美元。播客「DAILY CREATINE」、街头采访「NICE RIDE」，README 里也都有官方示例成片。
+
+它不是「丢提示词就出片」的黑盒。它把画面、字幕、B-roll、特效锚定在「词」上，而不是死盯第几秒。你可以丢参考片复刻成完整 workflow；也可以从模板起步，或直接描述让 Agent 从零写。生成模型可选——字幕、动效、代码渲，不调生成接口也能成片。
+
+怎么用？三步就够。
+
+第一步，跑 npx skills add hypit-ai/hypit -g，把 Skill 装进 Coding Agent。
+
+第二步，丢参考片或说清需求——比如「按这条排名片的结构，换成我的产品」。左侧 SVML 源文件，右侧实时预览，就是官方示例里的 Studio 观感。
+
+第三步，让 Agent 对齐、组素材、交出可再跑的工程；改一句台词，时间轴跟着词重排。
+
+社区也有人做过：书单带货、产品广告换角色换场景——hypit.io/examples 能点开真片。不是空口「你可以试试」，是别人已经交过卷。
+
+仓库 github.com/hypit-ai/hypit，落地页 hypit.ai。想看 Agent 怎么按「词」剪片，去 Star 一份自己玩。
+
+明天同一个点，再拆下一个有意思的 GitHub。你想看哪一类，评论区丢给我。
