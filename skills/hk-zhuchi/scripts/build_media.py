@@ -19,7 +19,9 @@ from pathlib import Path
 PROJ = Path(os.environ.get("HK_PROJECT", Path.cwd())).resolve()
 SKILL = Path(os.environ.get("HK_PRESET", Path(__file__).resolve().parent.parent)).resolve()
 CAT = Path(os.environ.get("HK_CAT_CLIPS", r"E:\minimax H3\002_全世界家猫只有一个祖先_跳跳项目\video\final"))
-W, H, FPS = 1080, 1920, 30
+# --wide：横版 16:9（1920×1080）。其它约束（素材优先/口型验收）完全一样。
+WIDE = "--wide" in sys.argv
+W, H, FPS = (1920, 1080, 30) if WIDE else (1080, 1920, 30)
 GAP = 0.25
 # --full：全程放大（主画面就是数字人全屏，花字叠在上面）。小窗口型的保险方案。
 FULL_SCREEN = "--full" in sys.argv
@@ -353,8 +355,27 @@ def main():
     # 合并出画时一个片段盖住好几段，如果按「组」拼主画面，每组只贡献一个段间间隔，
     # 被合并掉的段就各少 0.25 秒 —— 累计到最后画面就追不上旁白（表现：只有前几秒口型对）。
     # 所以一律**按段切**：每段从组里取 [offset, offset+dur+GAP]，时间轴和旁白逐段对齐。
+    # groups.json 只记「同一次出画」的合并关系；用 --only 单段覆盖后它会丢别的段，
+    # 所以再扫一遍 gen/ 兜底，保证「文件在＝有出画」
     _gfile = PROJ / "groups.json"
     _groups = json.loads(_gfile.read_text(encoding="utf-8")) if _gfile.exists() else None
+    # 扫盘兜底：只要 gen/renoise-<id>.mp4 在，就认为这一段有出画。
+    # （踩过：--only 单段出画会把 groups.json 覆盖成只剩一段，别的段静默退回底版）
+    _by_id = {x["ids"][0]: x for x in (_groups or [])}
+    _extra = []
+    for _s in S:
+        _sid = _s["id"]
+        if _sid in _by_id or any(_sid in g["ids"] for g in (_groups or [])):
+            continue
+        _f = PROJ / "gen" / f"local-{_sid}.mp4"
+        if not _f.exists():
+            _f = PROJ / "gen" / f"renoise-{_sid}.mp4"
+        if _f.exists():
+            _extra.append({"ids": [_sid], "taskId": _sid,
+                           "dur": round(dur(_f), 3), "file": f"gen/local-{_sid}.mp4"})
+    if _extra:
+        _groups = (_groups or []) + _extra
+        print(f"· groups.json 补了 {len(_extra)} 段（扫 gen/）：{[g['taskId'] for g in _extra]}")
     FIXED = PROJ / "gen" / "fixed"          # lipsync_repair.py 的产物：已按偏移曲线对齐
 
     def _pick(rel):
@@ -374,7 +395,10 @@ def main():
                 off += slots[k]
     else:
         for s in S:
-            srcp, done = _pick(f"gen/renoise-{ids[s['id']]}.mp4")
+            # 本机出画优先（中转已移除）；老工程如果只有 renoise-* 仍能跑
+            srcp, done = _pick(f"gen/local-{ids[s['id']]}.mp4")
+            if srcp is None or not Path(srcp).exists():
+                srcp, done = _pick(f"gen/renoise-{ids[s['id']]}.mp4")
             seg_src[s["id"]] = (srcp, 0.0, done)
     nfix = sum(1 for v in seg_src.values() if v[2])
     if nfix:
@@ -438,7 +462,9 @@ def main():
         return str(out)
 
 
-    intro = PROJ / "gen" / f"renoise-{ids[S[0]['id']]}.mp4"
+    # 首段不一定是露脸段（可能整段都是版式卡），没出画就别硬找
+    _first = S[0]["id"]
+    intro = PROJ / "gen" / f"renoise-{ids.get(_first, _first)}.mp4"
     total = sum(slots)
     host_intro = float(os.environ.get("HK_HOST_INTRO", "0") or 0)
     host_outro = float(os.environ.get("HK_HOST_OUTRO", "0") or 0)
@@ -480,12 +506,13 @@ def main():
             parts.append(seg_clip(i, "full") if use_host else visual_clip(i))
         if HYBRID:
             print(f"· 混合模式：数字人 0~{host_intro:.0f}s 和 {total - host_outro:.0f}s~ 露脸，中间走画面")
-    # 首段只取到旁白结束
+    # 首段只取到旁白结束（全屏模式下首段不一定是出画，没有就跳过）
     intro_trim = PROJ / "tmp" / "intro.mp4"
-    run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(intro), "-frames:v", str(frames[0]),
-         "-an", "-vf", f"scale={W}:{H},fps={FPS}", "-c:v", "libx264", "-crf", "18", "-preset", "medium", str(intro_trim)])
-    if not FULL_SCREEN:
-        parts[0] = str(intro_trim)
+    if intro.exists():
+        run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(intro), "-frames:v", str(frames[0]),
+             "-an", "-vf", f"scale={W}:{H},fps={FPS}", "-c:v", "libx264", "-crf", "18", "-preset", "medium", str(intro_trim)])
+        if not FULL_SCREEN:
+            parts[0] = str(intro_trim)
     lst = PROJ / "tmp" / "main.txt"
     lst.write_text("".join(f"file '{p.replace(chr(92), '/')}'\n" for p in parts), encoding="utf-8")
     run(["ffmpeg", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),

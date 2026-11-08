@@ -13,8 +13,9 @@ r"""digital-human-koubo · 本机后端适配器（替代 Renoise MCP 这一层�
 能力映射：
     配音   → MiniMax speech-2.8-hd（云，默认）或本机 VoxCPM2 http://127.0.0.1:8808（本地克隆音色）
     定妆照 → MiniMax image-01（云）。本机没有文生图模型：ComfyUI\models\checkpoints 是空的。
-    口播   → 本机 MiniMax H3（ComfyUI:8188，--guide-audio 硬锚定，口型跟配音逐字对齐）
-             或云端 MiniMax-H3（/v2/video_generation，参考音频免费）
+    口播   → 本机 MiniMax H3（ComfyUI:8188，--guide-audio 硬锚定，口型跟配音逐字对齐）【主力】
+             或 token01 中转 MiniMax-H3 768p（/v1/video/generations，¥0.04/秒，可选通道）
+             或官方 MiniMax-H3（/v2/video_generation，¥0.40/秒起，兜底）
 
 用法：
     python backend.py account
@@ -72,6 +73,11 @@ VOXCPM_VOICE = CFG.get("voxcpm_voice", os.environ.get("VOXCPM_VOICE", "huakan"))
 
 # 视频定价（元/秒），来源 platform.minimax.cn 定价概览（2026-10）
 H3_PRICE = {"MiniMax-H3-Highspeed": 0.40, "MiniMax-H3-Lite": 0.26, "MiniMax-H3": 0.50}
+# token01 中转（New API）default_we 分组实测价：768p ¥0.04/s、1088p/1080p ¥0.06/s，参考图/音免费
+RELAY_PRICE = {"768p": 0.04, "1080p": 0.06, "1088p": 0.06}
+RELAY_MIN_DUR, RELAY_MAX_DUR = 4, 15
+TOKEN01_KEY_PATHS = [Path(r"E:\工作用\.config\secrets\token01_api_key"),
+                     Path.home() / ".config" / "secrets" / "token01_api_key"]
 IMAGE_PRICE = 0.025          # 元/张
 TTS_PRICE_PER_10K = 3.50     # 元/万字符（汉字算 2 字符）
 
@@ -93,6 +99,37 @@ def mm_key():
             return m.group(1)
     sys.exit("找不到 MiniMax API key（设 MINIMAX_CN_API_KEY 环境变量）")
 
+def relay_base():
+    return (os.environ.get("TOKEN01_BASE") or CFG.get("relay_base")
+            or "https://token01.net/v1").rstrip("/")
+
+
+def relay_model():
+    return CFG.get("relay_model", "MiniMax-H3")
+
+
+def relay_resolution():
+    """出画分辨率：HK_RELAY_RES 环境变量 > CFG.relay_resolution > 768p。
+
+    1080p 档出的是 1088x1920（竖版原生），比 768p 的 768x1344 放大后清楚得多。
+    """
+    r = str(os.environ.get("HK_RELAY_RES") or CFG.get("relay_resolution", "768p")).lower()
+    return "1080p" if r in ("1080p", "1088p") else "768p"
+
+
+def relay_key():
+    """token01 令牌：环境变量 → local-backend.json → secrets 文件。"""
+    k = os.environ.get("TOKEN01_KEY") or CFG.get("relay_key")
+    if k:
+        return str(k).strip()
+    for p in TOKEN01_KEY_PATHS:
+        if p.exists():
+            k = p.read_text(encoding="utf-8").strip()
+            if k:
+                return k
+    sys.exit("找不到 token01 key（设 TOKEN01_KEY，或写到 E:\\工作用\\.config\\secrets\\token01_api_key）")
+
+
 
 def http_json(url, payload=None, method="POST", headers=None, timeout=120, raw=False):
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
@@ -111,6 +148,18 @@ def http_json(url, payload=None, method="POST", headers=None, timeout=120, raw=F
 
 # ------------------------------------------------------------------ 报价
 
+def video_price_per_sec():
+    """当前出片通道的元/秒：local 免费；relay-h3 按中转价；cloud-h3 走官方价。"""
+    backend = CFG.get("video_backend", "local")
+    if backend == "local":
+        return 0.0, "本机 H3（免费）"
+    if backend in ("relay-h3", "relay"):
+        rate = RELAY_PRICE.get(relay_resolution(), 0.04)
+        return rate, f"中转 H3 {relay_resolution()}（¥{rate}/s）"
+    model = CFG.get("cloud_video_model", "MiniMax-H3-Highspeed")
+    return H3_PRICE.get(model, 0.40), model
+
+
 def estimate(tasks):
     """段数 · 秒数 · 预估花费。本机后端只有生图要花钱；视频和配音都在本地跑。
     images_this_run 默认 0：定妆照/场景图是单独用 image 命令生成的，
@@ -118,13 +167,13 @@ def estimate(tasks):
     secs = sum(t["duration"] for t in tasks)
     n_img = int(CFG.get("images_this_run", 0))
     chars = sum(len(t.get("line", "") or t.get("prompt", "")) for t in tasks) * 2
-    local_video = CFG.get("video_backend", "local") == "local"
     local_tts = CFG.get("tts_backend", "voxcpm") == "voxcpm"
-    video = 0.0 if local_video else secs * H3_PRICE.get(CFG.get("cloud_video_model", "MiniMax-H3-Highspeed"), 0.40)
+    video_rate, video_label = video_price_per_sec()
+    video = secs * video_rate
     img = n_img * IMAGE_PRICE
     tts = 0.0 if local_tts else chars / 10000 * TTS_PRICE_PER_10K
     return {"segments": len(tasks), "seconds": round(secs, 1),
-            "video_backend": "本机 H3（免费）" if local_video else CFG.get("cloud_video_model"),
+            "video_backend": video_label,
             "tts_backend": ("本机 VoxCPM2（免费）" if local_tts else
                             (f"豆包 {CFG.get('doubao_speaker')}" if CFG.get("tts_backend") == "doubao"
                              else CFG.get("tts_model"))),
@@ -450,7 +499,7 @@ def h3_wait(prompt_id, timeout=3600):
                 for out in (rec.get("outputs") or {}).values():
                     for item in (out.get("images") or []) + (out.get("videos") or []):
                         if item.get("type") == "output" and item.get("filename", "").endswith(".mp4"):
-                            return H3_OUT / item.get("subfolder", "") / item["filename"]
+                            sub = (item.get("subfolder") or "").replace("\\\\", "/").replace("\\", "/"); return H3_OUT / sub / item["filename"]
                 raise RuntimeError("H3 任务完成但没找到视频输出")
         time.sleep(5)
     raise TimeoutError("H3 任务超时")
@@ -468,7 +517,8 @@ def download(url, dst):
         r = subprocess.run([exe, "-sSL", "--max-time", "900", "-o", str(dst), url], capture_output=True)
         if r.returncode == 0 and dst.exists() and dst.stat().st_size > 0:
             return dst
-        raise RuntimeError(f"curl 下载失败 rc={r.returncode}: {r.stderr[:200]}")
+        # 受限环境里 curl 会拿不到 TLS 凭证（schannel: SEC_E_NO_CREDENTIALS），别直接抛错，退回 urllib
+        print(f"· curl 下载失败 rc={r.returncode}，改用 urllib", flush=True)
     raw = http_json(url, None, method="GET", timeout=600, raw=True)
     dst.write_bytes(raw)
     return dst
@@ -550,6 +600,219 @@ def h3_v2_wait(task_id, timeout=1800):
     raise TimeoutError("H3 v2 超时")
 
 
+# ------------------------------------------------------------------ token01 中转 H3（可选通道）
+
+# New API 形接口：POST /v1/video/generations → GET /v1/video/generations/{task_id}
+# default_we 分组实测：768p ¥0.04/s、1088p(1080p) ¥0.06/s；参考图与参考音频输入免费。
+# 成片只保留 3 天。**主力仍是本机 H3**，这条通道要用户点头才用。
+
+
+def _relay_data_url(path, kind):
+    import base64
+    mime = "image/jpeg" if kind == "image" else "audio/mpeg"
+    return f"data:{mime};base64," + base64.b64encode(Path(path).read_bytes()).decode()
+
+
+def pick_outfit(persona):
+    """挑衣服：同一支视频固定一套，不同话题换一套。
+
+    返回 (index, 描述, 照片路径或 None)。
+    有照片就用照片（推荐，不改脸）；没照片才退回文字描述。
+    """
+    outfits = persona.get("outfits") or []
+    photos = persona.get("outfit_photos") or {}
+    n = max(1, len(outfits))
+
+    raw = (os.environ.get("HK_OUTFIT") or "").strip()
+    if raw and raw.lower() != "auto":
+        try:
+            i = int(raw) % n
+        except Exception:
+            i = 0
+    else:
+        cache = Path.cwd() / "gen" / "outfit.json"
+        i = None
+        if cache.exists():
+            try:
+                i = int(json.loads(cache.read_text(encoding="utf-8")).get("index", 0)) % n
+            except Exception:
+                i = None
+        if i is None:
+            ctr = Path(os.environ.get("USERPROFILE", ".")) / ".hk_outfit_counter"
+            try:
+                seq = int(ctr.read_text(encoding="utf-8").strip())
+            except Exception:
+                seq = 0
+            i = seq % n
+            try:
+                ctr.write_text(str(seq + 1), encoding="utf-8")
+                cache.parent.mkdir(parents=True, exist_ok=True)
+                cache.write_text(json.dumps({"index": i, "outfit": outfits[i] if outfits else ""},
+                                            ensure_ascii=False, indent=1), encoding="utf-8")
+            except Exception:
+                pass
+
+    desc = outfits[i] if outfits else ""
+    photo = None
+    rel = photos.get(str(i)) or photos.get(i)
+    if rel:
+        q = SKILL / rel
+        if q.exists():
+            photo = q
+    return i, desc, photo
+
+
+def out_prompt_from_persona():
+    """出画提示词。
+
+    有当期服装照片 → 用照片当主参考、提示词一律说「保持参考图中的衣服」；
+    只有文字 → 代入 {outfit}，并在日志里警告可能改脸。
+    """
+    f = SKILL / "persona" / "persona.json"
+    if f.exists():
+        try:
+            p = json.loads(f.read_text(encoding="utf-8"))
+            t = (p.get("prompt_relay_zh") or "").strip()
+            if t:
+                i, desc, photo = pick_outfit(p)
+                if photo is not None:
+                    print(f"· 本期服装 #{i}（有实拍照片，用它当参考，不改脸）", flush=True)
+                    t = t.replace("换成：{outfit}", "保持<Picture 1>里这件衣服不变（不换装）")
+                    t = t.replace("{outfit}", desc or "")
+                    t = t.replace("保持<Picture 1>里这件衣服不变（不换装）不变",
+                                  "保持<Picture 1>里这件衣服不变")
+                    return t
+                # 没有实拍照片时，默认保持参考图原样（文字换装实测会改脸，不默认启用）
+                if not p.get("allow_text_outfit"):
+                    print(f"· 本期不换装（第 #{i} 套没有实拍照片；要换装请登记 outfit_photos）", flush=True)
+                    t = t.replace("把这件衣服换成：{outfit}。", "保持<Picture 1>里这件衣服不变。")
+                    return t.replace("{outfit}", "")
+                print(f"· 本期服装 #{i}（文字描述，实测会改脸）：{(desc or '')[:20]}…", flush=True)
+                return t.replace("{outfit}", desc or "保持参考图中的衣服")
+        except Exception:
+            pass
+    return ("以<Picture 1>中的人物为唯一主体，保持长相、发型与服装完全一致；"
+            "正面半身，对镜头说话，口型与<Audio 1>逐字同步；镜头固定。")
+
+
+def outfit_photo():
+    """当前这期如果是照片驱动的换装，返回那张照片；否则 None。"""
+    f = SKILL / "persona" / "persona.json"
+    if not f.exists():
+        return None
+    try:
+        p = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    _, _, photo = pick_outfit(p)
+    return photo
+
+
+def tts_speed():
+    """语速：CFG.tts_speed 优先，其次 persona.voice_speed，默认 1.0。"""
+    if CFG.get("tts_speed") is not None:
+        return float(CFG["tts_speed"])
+    f = SKILL / "persona" / "persona.json"
+    if f.exists():
+        try:
+            p = json.loads(f.read_text(encoding="utf-8"))
+            if p.get("voice_speed"):
+                return float(p["voice_speed"])
+        except Exception:
+            pass
+    return 1.0
+
+
+def to_relay_prompt(grok_prompt, line=None):
+    """返回中转出画用的提示词。台词由 <Audio 1> 提供，所以要把它从文本提示词里剔掉。"""
+    tpl = out_prompt_from_persona()
+    return tpl
+
+
+def first_frame_path():
+    """persona.host_first_frame=true 时返回首帧图路径，否则 None。"""
+    f = SKILL / "persona" / "persona.json"
+    if not f.exists():
+        return None
+    try:
+        p = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not p.get("host_first_frame"):
+        return None
+    rel = p.get("host_first_frame_file") or "assets/host_frame.jpg"
+    q = SKILL / rel
+    return q if q.exists() else None
+
+
+def relay_extra_refs():
+    """persona.reference_extra 里的多角度参考图（七视图里挑的），用来锁身份。"""
+    f = SKILL / "persona" / "persona.json"
+    out = []
+    if f.exists():
+        try:
+            p = json.loads(f.read_text(encoding="utf-8"))
+            for x in (p.get("reference_extra") or []):
+                q = SKILL / x
+                if q.exists():
+                    out.append(q)
+        except Exception:
+            pass
+    return out
+
+
+def relay_create(image_path, audio_path, prompt, duration, resolution=None, ratio=None):
+    refs = [_relay_data_url(image_path, "image")]
+    extra = relay_extra_refs()
+    for q in extra:
+        refs.append(_relay_data_url(q, "image"))
+    if extra:
+        print(f"  · 追加 {len(extra)} 张多角度参考图锁身份", flush=True)
+    body = {"model": relay_model(), "prompt": prompt, "duration": int(duration),
+            "resolution": resolution or relay_resolution(),
+            "ratio": ratio or CFG.get("relay_ratio", "9:16"),
+            "reference_images": refs,
+            "audio_urls": [_relay_data_url(audio_path, "audio")]}
+
+    # 首帧模式：把本人真实照片当首帧，只做说话动画（身份不漂）
+    ff = first_frame_path()
+    if ff is not None:
+        body["first_frame_url"] = _relay_data_url(ff, "image")
+        print(f"  · 首帧模式：{ff.name}（图生视频，不改外观）", flush=True)
+    if CFG.get("relay_martial_arts"):
+        body["martial_arts"] = True
+        body["motion_speed"] = float(CFG.get("relay_motion_speed", 1))
+    d = http_json(relay_base() + "/video/generations", body,
+                  headers={"Authorization": "Bearer " + relay_key()}, timeout=180)
+    tid = d.get("task_id") or d.get("id") or (d.get("data") or {}).get("task_id")
+    if not tid:
+        raise RuntimeError(f"中转没返回 task_id：{json.dumps(d, ensure_ascii=False)[:300]}")
+    return tid
+
+
+def relay_wait(task_id, timeout=1800):
+    """轮询到出片。结果是 {code, data:{status:SUCCESS, result_url, quota, group}}，quota/500000 = 元。"""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        d = http_json(f"{relay_base()}/video/generations/{task_id}", None, method="GET",
+                      headers={"Authorization": "Bearer " + relay_key()}, timeout=60)
+        data = d.get("data") or {}
+        status = str(data.get("status") or "").lower()
+        if status in ("success", "succeeded", "completed"):
+            url = data.get("result_url") or (data.get("data") or {}).get("url") or data.get("url")
+            if not url:
+                raise RuntimeError(f"中转出片成功但没有地址：{json.dumps(d, ensure_ascii=False)[:400]}")
+            yuan = (data.get("quota") or 0) / 500000
+            if yuan:
+                print(f"  · 本段实际扣费 ¥{yuan:.2f}（{data.get('group', '?')}）", flush=True)
+            return url
+        if status in ("failed", "error", "canceled", "cancelled"):
+            raise RuntimeError(f"中转出片失败：{data.get('fail_reason') or json.dumps(d, ensure_ascii=False)[:400]}")
+        time.sleep(8)
+    raise TimeoutError("中转 H3 超时（成片只保留 3 天，及时下载）")
+
+
+
 def pad_audio_to(src, dst, seconds):
     """把音频补/截到指定秒数（云端 H3 时长下限 4 秒）"""
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(src),
@@ -580,7 +843,10 @@ def restart_comfyui(wait_s=20):
     time.sleep(wait_s)
 
 def run(tasks, out_ids="ids.json", backend="local", only=None, dry_run=False, seed_base=None, merge=0, force=False):
-    seed_base = int(seed_base if seed_base is not None else os.environ.get("HK_SEED", "4201"))
+    if backend in ("cloud-h3", "cloud", "relay-h3", "relay"):
+        raise SystemExit(
+            "外部 API 出画通道已移除（2026-11-01）：数字人一律用本机 MiniMax H3 出画"
+            "（--guide-audio，口型由我们的配音逐帧驱动）。请用 --backend local。")
     materials = CFG.get("materials", {})
     q = estimate(tasks)
     print(f"报价：{q['segments']} 段 · {q['seconds']} 秒 · 预估 ¥{q['total_cny']}"
@@ -671,6 +937,30 @@ def run(tasks, out_ids="ids.json", backend="local", only=None, dry_run=False, se
                 continue
             prompt = t.get("prompt_override") or to_h3_prompt(t["prompt"])
 
+            if backend in ("relay-h3", "relay"):
+                # 可选通道：token01 中转 H3（768p ¥0.04/s）。图 + 音频参考 → 自带口播音轨。
+                if dur > RELAY_MAX_DUR + 0.5:
+                    raise RuntimeError(f"[{sid}] 这一段 {dur:.1f}s 超过中转上限 {RELAY_MAX_DUR}s："
+                                       f"把 --merge 调小，或把这段台词拆短")
+                want = max(RELAY_MIN_DUR, min(RELAY_MAX_DUR, int(math.ceil(dur - 1e-6))))
+                wav2 = Path("voice") / f"{sid}_pad.wav"
+                pad_audio_to(voice, wav2, want)
+                rprompt = to_relay_prompt(t["prompt"], extract_line(t))
+                rate = RELAY_PRICE.get(relay_resolution(), 0.04)
+                _size = t.get("size") or [576, 1024]
+                _ratio = "16:9" if _size[0] > _size[1] else CFG.get("relay_ratio", "9:16")
+                print(f"[{sid}] 中转 H3 {relay_model()}/{relay_resolution()}/{_ratio} {want}s（¥{rate * want:.2f}）…", flush=True)
+                tid = relay_create(ref, wav2, rprompt, want, ratio=_ratio)
+                print(f"[{sid}] task_id={tid}，等待出片…", flush=True)
+                url = relay_wait(tid)
+                download(url, out_mp4)
+                print(f"[{sid}] 完成 → {out_mp4}（中转自带口播音轨）", flush=True)
+                groups_meta.append({"ids": sids, "taskId": task_id, "dur": round(dur, 3),
+                                    "file": f"gen/renoise-{task_id}.mp4", "channel": "relay-h3"})
+                Path(out_ids).write_text(json.dumps(ids, ensure_ascii=False, indent=1), encoding="utf-8")
+                Path("groups.json").write_text(json.dumps(groups_meta, ensure_ascii=False, indent=1), encoding="utf-8")
+                continue
+
             if backend == "cloud-h3":
                 # 云端 H3 v2：图 + 音频参考 → 视频自带原生口播，口型天生对齐
                 model = CFG.get("cloud_h3_model", "MiniMax-H3-Highspeed")
@@ -702,7 +992,8 @@ def run(tasks, out_ids="ids.json", backend="local", only=None, dry_run=False, se
             src = None
             for attempt in range(3):
                 try:
-                    pid = h3_generate(ref, audio_for_h3, prompt, w, h, frames, seed_base + i, prefix)
+                    seed = (seed_base if seed_base is not None else int(__import__("os").environ.get("HK_SEED", "917733"))) + i
+                    pid = h3_generate(ref, audio_for_h3, prompt, w, h, frames, seed, prefix)
                     print(f"[{sid}] H3 prompt_id={pid}，等待出片…", flush=True)
                     src = h3_wait(pid)
                     break
@@ -765,7 +1056,10 @@ def main():
     ap.add_argument("--prompt")
     ap.add_argument("--ref")
     ap.add_argument("--ratio", default="9:16")
-    ap.add_argument("--backend", default="local", choices=["local", "cloud-h3"])
+    ap.add_argument("--backend", default=CFG.get("video_backend", "local"),
+                    choices=["local"],
+                    help="出片通道：local=本机 H3（--guide-audio，口型由配音逐帧驱动，推荐）；"
+                         "cloud-h3=官方云端 H3（贵，兜底）")
     ap.add_argument("--only")
     ap.add_argument("--merge", type=float, default=float(CFG.get("merge_seconds", 0)),
                     help="把连续短段合并成 ≤N 秒的长片段出画（省每段 ~100 秒固定开销）")
@@ -819,3 +1113,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# 兼容旧脚本：中转已移除，旧名字指向新的提示词函数
+relay_prompt_from_persona = out_prompt_from_persona
