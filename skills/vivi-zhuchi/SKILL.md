@@ -567,6 +567,38 @@ python <skill>\scripts\check_edit.py edit/src
 bash <skill>\scripts/render.sh edit 成片.mp4
 ```
 
+## 交付档默认（2026-11-08 SITC 这期实测，已进 `references/local-backend.json`）
+
+| 项 | 交付默认 | 只许用于草稿 |
+|---|---|---|
+| 出画分辨率 | **704×1280**（32 的倍数，接近定妆 864×1152） | 576×1024 |
+| 步数 / 模式 | **`mode=standard`（不挂 turbo LoRA）**、`h3_steps` **≥8** | turbo 4 步 |
+| 原生片码率 | 对标 ≈2.7 Mbps@704×1280 | 压到 ~1.0 Mbps |
+| 成片 | 1080×1920 / 30fps / **CBR ≥4 Mbps**（本机实测 6.0 Mbps） | ABR/CRF（静态图形下实测只吃到 3.4 Mbps） |
+
+> 704×1280 + standard + steps≥8 实测：皮肤有毛孔、发丝不糊、口型区清晰，无蜡感。
+> turbo 4 步 + 576×1024 出的是偏糊偏蜡的片，只能用来试口型和节奏。
+
+### 构图漂移：出画怼脸怎么办（2026-11-08 实测）
+
+新脸锁是**近景自拍构图**，H3 照着它复刻，704×1280 出来就是**怼脸大特写**
+（头被裁、眯眼笑）——看着像废片。修法三件套：
+
+1. 造一张 9:16 拉版参考图（脸锁不变，上下留白 + 肩胸入画），当 `<Picture 1>` 喂；
+2. 提示词追加 FRAMING LOCK：中景腰以上、整颗头在画内、头顶留 15% 空、
+   全程不推拉、表情平静睁眼不笑、嘴闭时保持闭合；
+3. **换种子重出**（同段不同种子表现差异很大）。
+
+```bash
+# 9:16 拉版参考图（示例脚本见工程 dhk-sitc/assets/make_ref.py）
+python -c "from PIL import Image; im=Image.open('assets/host_look.jpg').convert('RGB'); W,H=704,1280; s=W/im.width; im=im.resize((W,int(im.height*s))); bg=im.getpixel((5,5)); c=Image.new('RGB',(W,H),bg); c.paste(im,(0,170)); c.save('assets/host_look_9x16.jpg')"
+```
+
+### 口型验收：`sync_pic.py` 的嘴框要按新构图重调
+
+新构图脸在画面上半部，嘴框不再是 `0.28,0.36,0.72,0.56`，要用
+`"0.36,0.38,0.64,0.48"`（704×1280 实测）。框落错会得到完全无意义的结果。
+
 **口型铁律**（写错就前功尽弃）：
 - 提示词必须用 `<Picture 1>` 绑定参考图、`<Audio 1>` 绑定配音
 - **台词不要写进提示词**（台词由 `<Audio 1>` 提供）
