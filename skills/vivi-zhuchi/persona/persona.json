@@ -21,7 +21,12 @@
       "720p": 0.4,
       "480p": 0.4
     },
-    "note": "本机 MiniMax H3 单段上限约 10 秒（17k+5 帧网格 @24fps）。"
+    "note": "本机 MiniMax H3 单段上限约 10 秒（17k+5 帧网格 @24fps）。",
+    "ratio_wide": "16:9",
+    "wide_size": [
+      1024,
+      576
+    ]
   },
   "acts": {
     "full": "warm eye contact, expressive face, natural hand gestures entering the frame",
@@ -35,5 +40,24 @@
   "languages_tested": {
     "zh": "100%"
   },
-  "prompt_big": "Use the exact same adult Chinese woman in <Picture 1> as the single presenter. Preserve her facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion, no drift. Preserve her recognizable facial geometry, long black hair with wispy strands framing her face, age, skin tone, and the white ribbed tank top. She holds the phone at arm's length and talks straight into her own front camera, same selfie framing, lighting and outfit as the reference, like a friendly Chinese tech vlogger {purpose}: {act}. Handheld selfie feel with only a very slight natural sway. Framed from the mid-chest up, with generous empty headroom above her head, so her hands, forearms and shoulders move naturally inside the frame. Her hands and upper body move clearly and continuously while she talks — she raises one open hand to chest height to emphasize a point, lowers it, then brings both hands up briefly with palms open, and her shoulders and torso shift naturally with the delivery; the gestures are fully visible in frame. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and small expression changes. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes or extra people."
+  "prompt_big": "Use the exact same adult Chinese woman in <Picture 1> as the single presenter. Preserve her facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion, no drift. Preserve her recognizable facial geometry, long black hair with wispy strands framing her face, age, skin tone, and the white ribbed tank top. She holds the phone at arm's length and talks straight into her own front camera, same selfie framing, lighting and outfit as the reference, like a friendly Chinese tech vlogger {purpose}: {act}. Handheld selfie feel with only a very slight natural sway. Framed from the mid-chest up, with generous empty headroom above her head, so her hands, forearms and shoulders move naturally inside the frame. Her hands and upper body move clearly and continuously while she talks — she raises one open hand to chest height to emphasize a point, lowers it, then brings both hands up briefly with palms open, and her shoulders and torso shift naturally with the delivery; the gestures are fully visible in frame. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and small expression changes. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes or extra people.",
+  "prompt_template_wide": "Use the exact same adult Chinese woman in <Picture 1> as the single presenter. Preserve her facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion. Preserve her recognizable facial geometry, long black hair with wispy strands framing her face, age, skin tone, and the white ribbed tank top. LANDSCAPE 16:9 framing: medium shot framed from the waist up, she is centred in the wide frame with clear empty space on BOTH sides and generous headroom above her hair, looking straight into the camera, plain bright wall behind her, soft even lighting, natural skin texture. His hands and upper body move clearly and continuously while he talks — he repeatedly raises one hand to chest height with an open palm to make a point, lowers it, and his shoulders and torso shift naturally; at least one hand gesture is clearly visible in every sentence, the arms are never still. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and small expression changes. Keep identity, outfit, framing and camera stable throughout. No captions, text, logos, scene changes or extra people.",
+  "prompt_big_wide": "Use the exact same adult Chinese woman in <Picture 1> as the single presenter. Preserve her facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion. Preserve her recognizable facial geometry, long black hair with wispy strands framing her face, age, skin tone, and the white ribbed tank top. LANDSCAPE 16:9 framing: medium shot framed from the waist up, she is centred in the wide frame with clear empty space on BOTH sides and generous headroom above her hair, looking straight into the camera, plain bright wall behind her, soft even lighting, natural skin texture. His hands and upper body move clearly and continuously while he talks — he raises one open hand to chest height to emphasize a point, lowers it, then brings both hands up briefly with palms open, and his shoulders and torso shift naturally; the gestures are fully visible in the wide frame. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and small expression changes. Keep identity, outfit, framing and camera stable throughout. No captions, text, logos, scene changes or extra people.",
+  "outfits": [
+    "白色罗纹背心（细肩带，修身），锁骨与肩线露出，配浅灰色直筒长裤",
+    "黑色针织吊带背心（方领，修身款），外搭一件敞开的白衬衫，袖口随意挽起",
+    "米色修身针织背心（U 领），配同色系开衫，开衫自然垂在肩上",
+    "雾灰蓝色一字肩针织上衣，露出肩颈线条，锁骨链一条，头发侧披",
+    "黑色运动背心（短款，扎进高腰裤），露腰一线，头发扎起",
+    "浅杏色丝质吊带裙上装（外搭短款西装外套，西装敞开），整体利落"
+  ],
+  "_outfit_note": "每个话题换一套：由 HK_OUTFIT / 工程 gen/outfit.json / 全局计数器决定；同一支视频内固定一套。换装需本人真实照片，别靠文字描述换装。",
+  "prompt_relay_zh": "以<Picture 1>（和参考的其它角度照片）中的这位女性为唯一主体。【外观全部照抄参考图】：脸型、五官比例、眉形眼型、发际线与耳朵、鼻子形状与大小、肤色与真实皮肤质感（不要磨皮美颜）、年龄感、发型（黑色长发带脸侧碎发）。禁止瘦脸、放大眼睛、卡通化、网红滤镜。【场景 · 硬要求】**人物坐在书桌前说话**：上半身坐姿，手臂自然放在桌面上，前景可见桌面。背景二选一（默认书房）：① 书房——浅木色书架、暖白灯光、浅景深虚化；② 纯白——无缝白色影棚。背景干净，不出现文字或 logo。【景别与构图】半身中景，头顶留白约一成，画面下沿到桌面/腰部，**双手全程在画面内**；**禁止推近、禁止变焦、禁止切特写、禁止裁掉手**；机位固定。【动作】双手自然小幅手势，肩颈呼吸起伏，眨眼自然。【说话】跟着<Audio 1>说，口型逐字同步，停顿自然闭嘴。画面干净：不加字幕、不换镜、不出现第二个人。",
+  "_outfit_prompt_note": "提示词里保留 {outfit} 占位符：出画时由 pick_outfit() 代入当期那套衣服。除衣服之外不写任何外观描述——写得越多，模型越容易连脸一起重绘。",
+  "outfit_photos": {},
+  "_outfit_photos_note": "换装的照片表。把「你穿第 N 套衣服」的真实照片放进 assets/ 并在这里登记，出画时会自动用那照片当参考图、保持衣服不变；没登记的第 N 套会退回文字描述（会改脸，不推荐）。",
+  "base_look": "assets/host_look.jpg",
+  "_framing_rule": "坐桌旁、半身、双手入画、禁推近；背景=书房或纯白",
+  "scene": "study",
+  "_scene_note": "study = 坐书桌旁 + 书房背景（默认）；white = 坐书桌旁 + 纯白背景"
 }

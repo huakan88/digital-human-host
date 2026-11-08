@@ -1,0 +1,93 @@
+{
+  "schema": "vivi-zhuchi-assets-lock/1",
+  "updated": "2026-11-08",
+  "note": "定妆/资产一律以 md5 认文件，不看文件名、不看文件大小。切脸锁用 scripts/set_face_lock.py，别手工覆盖。",
+  "authority": {
+    "repo": "huakan88/huahua-zhuchi-skill",
+    "commit": "841ae9198a899b5f4e87d9763623dd92d2051f11",
+    "pushed_at": "2026-11-05",
+    "path": "assets/looks/look-01-white-tank/",
+    "why": "GitHub 上定妆的权威仓就是花花主持仓；vivi 用它的 look-01-white-tank，等于和花花系列同一张脸。"
+  },
+  "face_lock": {
+    "default": "locked",
+    "pending_switch": "locked",
+    "_default_note": "本包按「现用」交付，保证和已经在跑的项目一致；GitHub HEAD 的新锁已随包（locked），一句话就能切：python scripts/set_face_lock.py locked",
+    "locked": {
+      "file": "assets/looks/look-01-white-tank/host_look-github-locked.jpg",
+      "md5": "67c564964aa0c4535cc7ec11da6ec20f",
+      "bytes": 181253,
+      "size": "864x1152",
+      "status": "GitHub HEAD 新锁（2026-11-04 晚批，短款背心/领口更低）",
+      "authoritative": true
+    },
+    "in_use": {
+      "file": "assets/looks/look-01-white-tank/host_look-archived-20261104.jpg",
+      "md5": "44385332ae3f6a7e6aff9ca423f92ee1",
+      "bytes": 244025,
+      "size": "864x1152",
+      "status": "旧锁（2026-11-04 早批 preferred），本机一直在用；花花仓已把它归档。此为归档副本，可随时切回",
+      "authoritative": false
+    },
+    "canonical": {
+      "file": "assets/looks/look-01-white-tank/host_look-canonical.jpg",
+      "md5": "4ac65eaccabff061ce53716e8c2881cc",
+      "bytes": 232592,
+      "size": "720x1280",
+      "status": "历史脸锁（自拍构图、手臂入画），归档留档",
+      "authoritative": false
+    },
+    "ref": {
+      "file": "assets/host_ref.jpg",
+      "md5": "b36ceb17921db15ac1a46b404a3787af",
+      "bytes": 124882,
+      "size": "672x1328",
+      "status": "参考图，与 GitHub host_ref-canonical.jpg 逐字节一致（md5 相同）",
+      "authoritative": true
+    }
+  },
+  "outfit_locks": {
+    "_note": "vivi 已经在借用花花的服装库：这两张是 2026-11-07 的 car-icd 项目留下的，半身图 md5 与花花仓 look-04-blazer 完全一致。",
+    "look-04-blazer": {
+      "file": "assets/host_look_car_icd.jpg",
+      "md5": "4db8684495a43f4e68d33d14cf474ea5",
+      "bytes": 248101,
+      "size": "864x1152",
+      "status": "藏蓝西装 + 白内搭半身，等于 huahua-zhuchi-skill/assets/looks/look-04-blazer/host_look.jpg（同一 md5）"
+    },
+    "s1-lock-car-icd": {
+      "file": "assets/s1-lock-car-icd.jpg",
+      "md5": "bd0b59f4fd898c79f0a670c8cd3108e1",
+      "bytes": 40374,
+      "size": "1024x576",
+      "status": "car-icd 项目 s1 段横版出画锁定帧（说话中，16:9），只作对照证据，不当定妆基准"
+    }
+  },
+  "views": {
+    "assets/looks/look-01-white-tank/7view-sheet.jpg": {
+      "md5": "1848eb610bc1c119f559f69a31861059",
+      "bytes": 134624,
+      "size": "1280x720",
+      "status": "GitHub HEAD 新批七视（Front|3/4F|SideL|3/4B|Back|SideR|Top，短款背心+肉色内裤）",
+      "local_old_md5": "610de8a2"
+    },
+    "assets/looks/look-00-body-base/7view-sheet.jpg": {
+      "md5": "46bbd757fc9de3310014c9c38cf21a7a",
+      "bytes": 143039,
+      "size": "1280x720",
+      "status": "GitHub HEAD 新批（黑蕾丝上装换衣基准，下装肉色内裤）",
+      "local_old_md5": "d47d7db2"
+    }
+  },
+  "hard_rules": [
+    "同一张脸：禁换脸另造；只在这三代 md5 里选，选了就记在这里。",
+    "露锁骨/胸口的半身与七视正视、3/4 视图：左胸小痣（观众右侧）必须在。",
+    "头大小与胸量肉眼对齐 preferred，不要每批自己重定。",
+    "七视下装按各 look 走（00/01 肉色内裤，02 黑铅笔裙，03 牛仔热裤，04 深蓝短裤，05 黑缎微裙，06 黑瑜伽裤，07 藕粉整裙）。",
+    "定妆是出画基准图，别再二次压缩：不要拿发糊/过压的 JPEG 喂 H3。"
+  ],
+  "verify": {
+    "command": "python scripts/set_face_lock.py --check",
+    "expect": "assets/host_look.jpg 的 md5 == face_lock[default] 的 md5"
+  }
+}

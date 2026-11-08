@@ -23,7 +23,7 @@ description: vivi主持 —— 用「白背心数字人」形象 + 豆包 Vivi 2
 | 项 | 值 |
 |---|---|
 | 形象 | 年轻东亚女性，黑色长发带脸侧碎发，**白色罗纹背心**，手机自拍构图，约 165cm |
-| 定妆照 | `assets/host_look.jpg`（来自上游 `digital-human-koubo` 的 `avatar_ref.jpg`） |
+| 定妆照 | `assets/host_look.jpg`（**三代脸锁见 `assets/ASSETS-LOCK.json`**；与花花主持同源） |
 | 声音 | 豆包 **Vivi 2.0** `zh_female_vv_uranus_bigtts`（`seed-tts-2.0` 资源） |
 | 语速 | `doubao_rate` 默认 20（koubo-video 横版实测约 6.5 字/秒） |
 | 人物设定全文 | `persona/persona.json` |
@@ -38,6 +38,30 @@ description: vivi主持 —— 用「白背心数字人」形象 + 豆包 Vivi 2
 或者直接用 `hk-zhuchi` 这个技能。
 
 详细的「怎么做一期口播」见 `references/how-to.md`（三样东西 + 五步 + 主画面三种做法 + 加速表）。
+
+## 定妆资产（锁定 · 2026-11-08）
+
+**别手工覆盖 `assets/host_look.jpg`**，一切走 `assets/ASSETS-LOCK.json`（人读版 `assets/资产锁定.md`）：
+
+```bash
+python scripts/set_face_lock.py --check    # 校验现场图与 default 是否一致
+python scripts/set_face_lock.py            # 列出三代锁
+python scripts/set_face_lock.py locked     # 切到 GitHub HEAD 权威锁 67c56496
+python scripts/set_face_lock.py in_use      # 切回旧锁 44385332
+```
+
+| 锁 | md5 | 尺寸 | 说明 |
+|---|---|---|---|
+| `locked` | `67c56496…` | 864×1152 | **GitHub HEAD 权威**（`huahua-zhuchi-skill` 11-04 晚批重锁，短款背心、领口更低） |
+| `in_use` | `44385332…` | 864×1152 | 11-04 早批 preferred（花花仓已归档；留作回滚） |
+| `canonical` | `4ac65eac…` | 720×1280 | 历史脸锁（自拍构图、手臂入画） |
+
+- **多视图**：`assets/looks/look-01-white-tank/7view-sheet.jpg`（七视新批，来自花花仓 HEAD）
+- **换装**：花花的 8 套定妆在 `huahua-zhuchi-skill/assets/looks/<look>/host_look.jpg`，直接当参考图用。
+  本机 `assets/host_look_car_icd.jpg` 就是借它的 `look-04-blazer`（md5 一致）。
+  **别用文字描述换装** —— 文字换装会改脸，这是花花系列反复踩过的坑。
+- 切换脚本先校验源文件 md5 再动手，换下来的图自动进 `assets/_archive/`，不删文件、可回滚。
+- 硬锁：同一张脸（禁换脸另造）、露胸口必留左胸小痣（观众右）、头大小与胸量对齐 preferred、七视下装按 look 走。
 
 ## 第一原则：素材优先（**硬指标，用户明确要求**）
 
@@ -123,6 +147,91 @@ E:\AI\envs\voxcpm\Scripts\python.exe sync_report.py 成片.mp4 "起-止,起-止,
 > 已到能力边界：本机 H3 的口型在 ±100ms 以内我这套测量分辨不出（两批独立出画给出相同分数、
 > 相邻子窗会 ±10 帧乱跳）。所以可承诺的是「全局 ≤2 帧」，做不到逐字级专业对白。
 > 真要逐字级，只能上嘴型重生成模型（LatentSync / Wav2Lip），那是独立安装工程。
+
+### 「嘴部静止」这个失败模式（2026-10-30 补充）
+
+自动相关性低（<0.4）时**不要**把它当成"偏移多少帧"，它多半是这一条素材
+**嘴根本没在动** —— 嘴一直是半张状态，和音频没有任何关系。平移救不了，只能重出。
+
+**判定方法（唯一可信）**：拉 72 帧（≈2.4 秒）的长帧条，看嘴形有没有变化。
+
+```bash
+python scripts/lipsync_long.py <成片或片段> <起始秒> 72      # 默认嘴框就是横版唇部
+# 输出：最佳滞后 ±N 帧 + corr + 一张 72 格的长帧条
+```
+
+- **72 帧里嘴形几乎不变** → 这条素材废了，重出（换种子），别调时间轴
+- 嘴形在变、但整体错开 → 才用 `gen/nudge.json` 定点平移
+- `corr < 0.4` 时**不要采信那个 lag 数字**：实测同一段能给出 ±500ms 且方向相反
+
+**重出的具体做法**（一次试两个种子，挑好的）：
+
+```bash
+for seed in 1201 9931; do
+  HK_SEED=$seed python scripts/backend.py run tasks.json --backend local --force --only s7
+  cp gen/renoise-s7.mp4 gen/s7_seed$seed.mp4
+done
+# 然后每条都拉长帧条看，挑嘴形变化最明显的那个
+```
+
+**为什么会随机出现**：口型一致性对种子敏感。同一句台词、同一张定妆照，
+有的种子嘴跟得很紧，有的种子嘴几乎不动。这不是参数没调好，是抽样问题。
+
+**验收顺序（更新）**：
+1. 拉长帧条看**嘴形有没有变化**（这是第一道门，不过就重出）
+2. 过了再量滞后，`|lag| ≤ 2 帧` 才放行
+3. 只有 1~3 帧的小偏差才用 nudge 平移
+
+### 定不了的时候：A/B/C 人眼定标（2026-10-30 补充）
+
+自动相关性在 ±100ms 内**不可靠**（实测同一段给出 −458ms 和 +458ms，方向相反）。
+当长帧条看不出明显错位、但听感/观感就是不对时，别再纠结数字，让眼睛定标：
+
+```bash
+python scripts/ab_offsets.py <片段> <配音.wav> AB_对比.mp4 6
+# 生成三段同一句：A 画面往前 0.2 秒 / B 原始 / C 画面往后 0.2 秒
+```
+放到最大看，只盯**嘴和音的先后**。选定哪个，就用 `gen/nudge.json` 按段调：
+
+```json
+{"s7": -6}     // 该段画面提前 6 帧；正数=画面往后
+```
+
+**这一招的价值**：把「我测不准」变成「用户能判断」，一次就问对，
+比反复重出画省得多（每段重出约 4 分钟，改偏移只要重新渲染）。
+
+**优先级顺序（最终版）**：
+1. 拉 72 帧长帧条 → 嘴形几乎不变 → **重出**（换种子）
+2. A/B/C 对比 → 人眼选偏移 → `nudge.json` 定点平移
+3. 还不对 → 该段改成版式卡，不露脸
+4. **永远不要**拿 `corr<0.4` 的 lag 数字直接去批量平移
+
+### 出画还有个「构图漂移」要查（2026-10-30 补）
+
+H3 偶尔会在生成过程中**把镜头怼到脸上**——开头还是正常头肩中景，两秒后只剩半张脸，
+看起来像"半个截图"。这不属于口型问题，但一样废片段。
+
+**验收时除了看嘴，还要看构图**：抽片段的首帧、中间、末帧三张，
+如果人物大小明显变化（尤其突然拉近到只剩五官），**换种子重出**，
+挑一个全程稳定的（实测换两次种子就能拿到稳定的）。
+
+```bash
+for t in 0.3 1.6 3.2 4.6; do ffmpeg -v error -y -ss $t -i clip.mp4 -frames:v 1 chk_$t.png; done
+# 拼成一张对比图，人物大小应当基本一致
+```
+
+### nudge 的符号别再搞反（2026-10-30 踩坑）
+
+`gen/nudge.json` 的值会进到 `seg_clip` 的 `-ss (off + lag)`：
+
+- **正数 = 画面提前**（从片段更靠后的位置开始切，内容显得更早）
+- **负数 = 画面延后**（从更靠前的位置切，内容显得更晚）
+
+要判断该用哪个，看逐帧表（`frame_pairs.py`）：
+**嘴比音频早闭嘴 → 画面要延后 → 用负数。**
+
+这次万圣节开场：嘴在第 20 帧闭嘴、音频第 29 帧才停 → 嘴早 10 帧 → 应该
+`{"s1": -10}`。我第一次写成 +10，结果更糟（嘴更早了），重渲一次才发现。
 
 ## 口型验收与修正规范（2026-10 血泪版）
 
@@ -243,6 +352,200 @@ for t in 2 8 14 22 30 38; do ffmpeg -v error -y -ss $t -i clip.mp4 -frames:v 1 -
 用户自己的作品直接进 `public/clips/`，`tag` 写 `我的作品`，`src_label` 写清项目名。
 用户自己的片子放进片子里是**最强的可信度**，别只当素材，要在文案里点名"这是我自己做的"。
 
+## 横版 16:9（**约束与竖版完全一致**）
+
+竖版 9:16 和横版 16:9 是同一套规范，只是画幅不同。**素材优先、口型强制项、验收流程一条都不减。**
+
+### 出画与装配（本仓库已支持 --wide）
+
+```bash
+# 1) 稿子里每段用横版分辨率（1024×576 是 32 的倍数，H3 能出）
+#    script.json: "size": [1024, 576]
+python scripts/make_tasks.py            # ratio 自动跟 size 走（16:9），
+                                       # 提示词自动切 persona 的 prompt_template_wide
+
+# 2) 主画面（1920×1080）
+python scripts/build_media.py --full --wide
+
+# 3) 口型验收（同竖版，嘴框按横版构图调）
+python scripts/sync_pic.py <片段> <起始秒> 12 "0.30,0.30,0.70,0.55"
+
+# 4) 切数字人窗口也用 --wide
+python scripts/make_host_wrap.py --project . --koubo <横版工程> --host-segs s1,s8 --wide
+```
+
+横版提示词已经写进两个 persona（`prompt_template_wide` / `prompt_big_wide`），
+要点：**中景、腰部以上、人物居中留两侧空地、头顶留白**，不要手机自拍构图。
+
+### 中期包装换成 koubo 横版模板
+
+```bash
+cp -r <koubo-video>/templates/wide ./koubo          # 横版模板
+python scripts/patch_koubo_wide_host.py ./koubo     # 接入数字人窗口层（host prop）
+python scripts/make_wide_beats.py ./koubo --tabs "现象|证据|规律|结论"
+cd koubo && npx remotion render src/index.ts Wide out/wide.mp4 --props='public/beats.json'
+```
+
+横版模板的卡片库很全（`components.tsx`）：`H1` / `Stat` / `BarChart` / `Checklist` /
+`NumberedList` / `MediaCard`（放真实片段）/ `Timeline` / `Compare` / `QuoteCard` / `EndCard` …
+`make_wide_beats.py` 已经把竖版那套 beat（stat/bars/check/rank/clip/cliptext）映射过去了；
+想用别的卡片就在 `beats_wide.json` 里按段 id 直接写 `{card, props}`。
+
+**数字人窗口**用 `beats.json` 里的 `host` 字段：
+```json
+"host": {"src": "main.mp4", "windows": [{"from": 0, "to": 87}]}
+```
+窗口内的拍会**只留字幕、卡片让位**，露出下面的数字人主画面 —— 和竖版同一个思路。
+
+### 横竖版差异（只有这些）
+
+| 项 | 竖版 9:16 | 横版 16:9 |
+|---|---|---|
+| 出画尺寸 | 576×1024（或 1080p） | 1024×576 |
+| 成片尺寸 | 1080×1920 | 1920×1080 |
+| 构图提示词 | 手机自拍、手臂伸向镜头 | 中景、腰以上、两侧留空、头顶留白 |
+| 包装模板 | `koubo-video/remotion-template` | `koubo-video/templates/wide` |
+| beat 定义 | `patch_koubo_episode.py` 写进 Weekly.tsx | `beats_wide.json` + `make_wide_beats.py` |
+| 露脸位置 | 可全屏，也可缩成左下角圆形小窗 | 一般全屏出镜，卡片让位 |
+
+**素材密度、单镜头一次生成、口型验收、署名——全部照旧。**
+
+### 横版实测结论（2026-10-29 首次跑通）
+
+- **出画**：`size: [1024, 576]` → H3 正常出片，横构图、白底、手部动作都在画面里
+- **成片**：`build_media.py --full --wide` → 1920×1080，帧栅格与竖版一致
+- **嘴框（横版）**：`"0.34,0.28,0.66,0.58"`（半身、居中构图）；竖版那个 0.28/0.36/0.72/0.56 不适用
+- **底版**：`python make_backdrop.py "" 1920 1080`（现在会写进 `HK_PROJECT` 目录）
+
+**定妆照（重要）**：用**原始照片**当出画基准，比用二次生成的定妆照更像本人。
+```bash
+HK_LOOK=assets/host_me_photo.jpg python make_tasks.py
+```
+实测：拿原图当基准，脸型/鼻型/发际线都对得上；换成生成过的 `host_me_look` 会脸变圆、鼻子变大。
+
+**本机 TTS 卡死时的兜底**：VoxCPM 服务偶发「加载完 9GB 但不响应」，`make_voice` 会一直挂着。
+这时先用豆包云端把音出来，别等：
+```bash
+python voice_doubao.py            # 直接调 backend.tts_doubao，几秒出音
+```
+（豆包约 ¥0.59/2 分钟，出片后再换回克隆音色也可以）
+
+**内存硬约束**：ComfyUI 开着 H3 权重时占 ~20GB，31GB 内存会只剩 0.9GB，
+VoxCPM 直接换页卡死。**先出音再出画**，或者先 `POST http://127.0.0.1:8188/free`
+（`{"unload_models":true,"free_memory":true}`）把 H3 权重卸掉。
+
+### 横版完整流程（2026-10-29 实跑：万圣节这期，77 秒成片）
+
+按这个顺序走，一条命令都不多余：
+
+```bash
+# 1) 稿子：每段 size 写 [1024, 576]，一段一句，≤45 字
+python <skill>/scripts/make_tasks.py            # ratio 自动 16:9，提示词自动切 *_wide
+
+# 2) 配音（豆包 Vivi，20 段约 1 分钟）
+python voice_doubao.py
+
+# 3) 出画：露脸段一段一次生成，用 gen/host_segs.json 指定
+python <skill>/scripts/backend.py run tasks.json --backend local --only s1,s5,s16,s20
+
+# 4) 主画面（1920×1080）+ 底版
+python <skill>/scripts/make_backdrop.py "" 1920 1080
+python <skill>/scripts/build_media.py --full --wide --no-asr
+
+# 5) 横版包装工程
+cp -r <koubo-video>/templates/wide ./koubo
+python <skill>/scripts/patch_koubo_wide_host.py     ./koubo   # 数字人窗口层
+python <skill>/scripts/patch_koubo_wide_mediatext.py ./koubo  # MediaText：素材铺底 + 大字
+python <skill>/scripts/make_host_wrap.py --project . --koubo ./koubo --host-segs s1,s5,s16,s20 --wide
+python <skill>/scripts/make_wide_beats.py ./koubo --tabs "现象|起源|结论"
+
+# 6) 渲染
+cd koubo && npx remotion render src/index.ts Wide out/wide.mp4 --props=public/beats.json
+```
+
+**两个新东西（这期加的）**
+
+1. **`MediaText` 卡**（`patch_koubo_wide_mediatext.py`）
+   横版模板原来只有白底排版卡，没有「文字压素材」。这个卡 = 素材铺满 + 压暗 + 大字居中，
+   等价于竖版的 `cliptext`。参数：`{src, video?, from?, title, sub?, dim?}`。
+
+2. **`make_wide_beats.py` 现在读 `public/timeline.json`**
+   以前它自己按 `sec + 0.25` 逐段重算时长，结果数字人窗口和主画面对不上
+   （实测 0-4.47s vs 主画面 0-4.23s，最后一段甚至超到 81.7s）。
+   **帧栅格是唯一权威**，所有 beat 的 `from/dur` 都必须从 timeline.json 取。
+
+### 拿「别人的科普片」当素材库（这期最省事的一招）
+
+找到一条画面配得好的科普片（例：B站 `BV17e411R7nc`「5分钟介绍万圣节的来历」），
+**按时间轴抽帧拆成十几个独立画面**，一格讲一个点，比自己找图快得多：
+
+```bash
+for t in 0 20 45 70 95 120 145 170 195 220 245 270 295; do
+  ffmpeg -v error -y -ss $t -i ref.mp4 -frames:v 1 -vf "scale=300:-2" ex_$t.png
+done
+# 拼成对照图挑画面，再把选中的图复制进 koubo/public/clips/
+```
+署名写 `Bilibili · 作品名 · BV号`。**抽帧看清内容再配文案**，别凭时间猜。
+
+### 横版两个必踩的 UI 坑（2026-10-30 补）
+
+**1. 章节条被素材卡盖住**
+`Wide.tsx` 里 `TabBar` 原本渲染在 `Card` 之前，而 `MediaText` 是铺满画面的
+`AbsoluteFill`，章节条就被压在底下了。必须把 TabBar 放到 Card **之后**：
+```tsx
+<K.Page ...><Card {...b.props}/>{tabs&&b.tab!==undefined&&<K.TabBar tabs={tabs} active={b.tab}/>}</K.Page>
+```
+（`patch_koubo_wide_tabbar.py`）
+
+**2. 章节条的默认配色在素材上不可读**
+模板默认是浅灰胶囊（#F2F2F2）+ 灰字，放在深色战场画面上几乎看不见。
+改成半透明深底 + 白字、当前项反白（`fix_tabbar_style.py`）。
+
+**3. 静态图连播会像 PPT**
+`MediaText` 原来是静止图 + 静止大字。加了极慢推近（1.0→1.06）+ 前 12 帧文字淡入上移
+（`patch_koubo_wide_motion.py`）。注意：加了推镜后每帧都在变，同样 CRF 下体积会翻倍，
+交付时把 CRF 调到 24 左右（78 秒 / 1080p ≈ 16MB）。
+
+### groups.json 会被「--only 单段」覆盖（2026-10-30 补）
+
+`backend.py run --only s3` 只跑一段时，它写出的 `groups.json` **只有这一段**。
+之后跑 `build_media.py`，其他段的 `seg_src` 就找不到，**静默退回底版**——
+表现是「某几个数字人窗口里没有人，只有背景」，非常难查。
+
+现在 `build_media.py` 会在读完 groups.json 后再**扫一遍 `gen/renoise-<id>.mp4`**，
+文件在就算有出画，并打印「groups.json 补了 N 段」。
+
+**排查口诀**：窗口里没数字人 → 先看 `main.mp4` 对应时间点有没有人 →
+没有人就查 `gen/renoise-<id>.mp4` 在不在、`groups.json` 里有没有这一段。
+
+**另一个教训**：改完稿子（旁白时长变了）要重跑 `build_media`，
+不然帧栅格还是旧的；但重跑前先确认 `gen/` 里的片段是给**新稿**出的。
+
+### 境外站点全线不通时，用 gh-proxy 取 GitHub（2026-10-30 实测）
+
+本机 `github.com` / `api.github.com` / `raw.githubusercontent.com` / `video.twimg.com`
+**全部 000**（连本地 Clash 也不通），但这两个 GitHub 代理**可达**：
+
+```
+https://gh-proxy.com/https://api.github.com/repos/<owner>/<repo>       # 元数据
+https://gh-proxy.com/https://github.com/<owner>/<repo>/archive/refs/heads/<branch>.zip
+```
+
+实测用它把 `tsonglew/chess-cn`（45.8MB）整包拉下来了，里面的 `media/`
+**自带项目官方演示视频**（`demo.mp4` 竖屏实机录屏、`general-cinematic.mp4` 横屏特写）——
+比任何 AI 概念图都强，直接进片。
+
+**两条经验**：
+1. 开源项目的 `media/` 目录常放官方 demo 视频，优先用它们，别自己生成
+2. `api.github.com` 的返回里能读到默认分支（不一定叫 main）、许可证、homepage（在线 demo 地址）
+
+**竖屏素材放进横版**：`objectFit: contain` 会变成中间一条窄带，很难看。
+正确做法是用 ffmpeg 裁成 16:9 再 cover：
+```bash
+ffmpeg -i demo.mp4 -vf "crop=592:333:0:260,scale=1280:720:flags=lanczos" -an out.mp4
+```
+`y=260`、`333` 高是按该片实测选的（避开顶部 UI 和底部提示条）。
+
 ## 工作流
 
 ```bash
@@ -253,7 +556,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File <skill>\scripts\doctor.ps1
 # 2) 出画（Vivi 配音 + 本机 H3）
 python <skill>\scripts\make_tasks.py
 python <skill>\scripts\backend.py quote tasks.json     # 先报价
-python <skill>\scripts\backend.py run   tasks.json     # → gen/renoise-<id>.mp4 + ids.json
+python <skill>\scripts\backend.py run   tasks.json     # 默认本地 H3 → gen/renoise-<id>.mp4 + ids.json
+#    ⚠ 出画前先问用户选通道（默认本地，不要替他选贵的）：
+#      local = 本机 H3（¥0，慢，主力）
 # 3) 组装素材
 python <skill>\scripts\build_media.py                 # → public/{main,pip,voice}.* + cut/ + tl.json
 # 4) 花字配置 edit/src/edit.json
@@ -300,3 +605,10 @@ references/
 scripts/                      薄封装（指向 hk-zhuchi 的引擎）
 examples/                     样例
 ```
+
+## vivi 的服装（2026-10-31 加）
+
+- 服装表在 `persona.json` 的 `outfits`（比 hk 那套更露一点、仍是可发布的日常穿着）
+- 挑衣服的逻辑、`gen/outfit.json` 固定机制、全局计数器都**在 `hk-zhuchi/SKILL.md`
+  的「服装：每个话题换一套」一节**，引擎共用，照那节执行
+- 口型强制流程同 `hk-zhuchi/SKILL.md` 的「口型强制流程」一节，vivi 没有例外
