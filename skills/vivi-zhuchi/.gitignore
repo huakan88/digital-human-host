@@ -1,0 +1,9 @@
+# Real-ESRGAN 二进制不入仓（51MB × 多套技能太肥，且非 Windows 用户用不上）
+# 换机器时跑：python <skill>/scripts/fetch_esrgan.py
+tools/esrgan/
+
+# Python 缓存与本地备份
+__pycache__/
+*.pyc
+*.bak
+*.relay.bak
