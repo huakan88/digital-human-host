@@ -14,7 +14,7 @@
   "h3_root": "E:/minimax H3",
   "width": 576,
   "height": 1024,
-  "_size": "9:16 竖屏，576x1024（宽高都要 32 的倍数）。不要降到 384x576：脸会崩、鼻头大、口型发糊",
+  "_size": "9:16 竖屏，576x1024（宽高都要 32 的倍数）。**出画统一 576x1024，之后必须超分到 1080x1920**（scripts/upscale_segments.py）。不要顶 704x1280：8GB 卡在 7 秒以上片段会 torch OOM。",
   "steps": 8,
   "mode": "standard",
   "free_vram_for_h3": true,
@@ -29,5 +29,6 @@
   "merge_seconds": 10,
   "_merge_note": "超过 ~300 帧（12.5 秒）会超出 8GB 显存，注意力换页，单步从 30 秒涨到 900 秒",
   "tts_speed": 1.2,
-  "_tts_speed": "1.2 = 用户定的默认语速（配合 huakan-tts --tight）"
+  "_tts_speed": "1.2 = 用户定的默认语速（配合 huakan-tts --tight）",
+  "_upscale": "交付必做：Real-ESRGAN x4plus + -t 0 → 1152x2048 → lanczos 1080x1920 + cas 0.35。踩坑：tile 默认值会把画面拼成错位碎块；animevideov3 模型用在真人脸上会出描边感。"
 }

@@ -567,21 +567,63 @@ python <skill>\scripts\check_edit.py edit/src
 bash <skill>\scripts/render.sh edit 成片.mp4
 ```
 
-## 交付档默认（2026-11-08 SITC 这期实测，已进 `references/local-backend.json`）
+## 交付档默认（2026-11-09 更新：**先渲染 → 再超分**）
+
+> **标准工序变了。** 以前硬顶 704×1280 求原生清晰度，但 8GB 卡在 7 秒以上的片段会 OOM，
+> 而且 704×1280 的原生片码率也只有 ~1.8–2.7 Mbps。现在改成：
+> **出画统一 576×1024，再用 Real-ESRGAN 超分到 1152×2048**，质量更稳、也不怕 OOM。
 
 | 项 | 交付默认 | 只许用于草稿 |
 |---|---|---|
-| 出画分辨率 | **704×1280**（32 的倍数，接近定妆 864×1152） | 576×1024 |
+| **出画分辨率** | **576×1024**（全部段统一，不再顶 704×1280） | — |
+| **超分** | **Real-ESRGAN `x4plus` + `-t 0` → 1152×2048**（见下一节） | — |
 | 步数 / 模式 | **`mode=standard`（不挂 turbo LoRA）**、`h3_steps` **≥8** | turbo 4 步 |
-| 原生片码率 | 对标 ≈2.7 Mbps@704×1280 | 压到 ~1.0 Mbps |
 | 成片 | 1080×1920 / 30fps / **CBR ≥4 Mbps**（本机实测 6.0 Mbps） | ABR/CRF（静态图形下实测只吃到 3.4 Mbps） |
 
-> 704×1280 + standard + steps≥8 实测：皮肤有毛孔、发丝不糊、口型区清晰，无蜡感。
-> turbo 4 步 + 576×1024 出的是偏糊偏蜡的片，只能用来试口型和节奏。
+为什么不再用 704×1280 出画：
+- 576×1024 + standard + steps≥8 → 超分后实测（2026-11-09 Anatomy 这期）睫毛、发丝、皮肤纹理
+  都不比 704×1280 原生差，肉眼 1:1 抽帧确认过（`dhk-anatomy/qc/esr_pipeline.png`）。
+- 704×1280 在 7 秒以上片段会 **torch OOM**（8GB 卡实测），576×1024 没有这个问题。
+- 576×1024 每步比 704×1280 快约 4 成，总排期更短。
 
-### 构图漂移：出画怼脸怎么办（2026-11-08 实测）
+## 超分工序（**交付必做，不是可选**）
 
-新脸锁是**近景自拍构图**，H3 照着它复刻，704×1280 出来就是**怼脸大特写**
+出画完 → **必须超分**，再进 Remotion。三段/多段露脸片一律照此执行：
+
+```bash
+# 1) 抽帧
+ffmpeg -v error -y -i gen/renoise-s1.mp4 -vsync 0 -frame_pts 1 tmp_up/s1/%05d.png
+
+# 2) 超分（x4plus + tile=0！见下方两个坑）
+realesrgan-ncnn-vulkan.exe -i tmp_up/s1/%05d.png -o tmp_up/s1/up/%05d.png \
+  -n realesrgan-x4plus -s 4 -t 0 -f png
+
+# 3) 下采样到成片尺寸 + 极轻锐化 + 带音轨重编码
+ffmpeg -v error -y -framerate 24 -i tmp_up/s1/up/%05d.png -i gen/renoise-s1.mp4 \
+  -map 0:v:0 -map 1:a:0 \
+  -vf "scale=1080:1920:flags=lanczos,cas=strength=0.35,format=yuv420p" \
+  -c:v libx264 -crf 16 -preset slow -c:a copy -shortest -movflags +faststart gen_up/renoise-s1.mp4
+```
+
+脚本模板：`dhk-anatomy/upscale_segments.py`（三段批量跑，可改 SEGS 列表直接用）。
+
+### 超分的两个坑（2026-11-09 实测，踩过）
+
+| 坑 | 症状 | 修法 |
+|---|---|---|
+| **默认 tile 切块** | 输出图**拼成错位碎块**（脸被切成几块拼歪） | 必须加 **`-t 0`**（不切 tile） |
+| **模型选错** | `realesr-animevideov3` 用在真人脸上出**描边感、睫毛结块**（那是给二次元做的） | 只用 **`realesrgan-x4plus`** |
+| **x4plus 会磨皮** | 毛孔被抹掉一档，轻微美化 → 撞「禁磨皮/禁蜡感」 | 接 **`cas=strength=0.35`** 极轻锐化找回质感；**不要上强锐化**（强了会蜡） |
+
+### 超分后包装层不许再缩放
+
+`gen_up/` 里的片已经是 **1080×1920**，Remotion 里 **1:1 直接铺**，不要再 `objectFit:cover` 放大——
+二次缩放会糊掉刚找回来的细节。prep 脚本要能区分「有超分版」和「无超分版」，
+无超分版才走放大通道并打印警告。
+
+## 构图漂移：出画怼脸怎么办（2026-11-08 实测）
+
+新脸锁是**近景自拍构图**，H3 照着它复刻，出来就是**怼脸大特写**
 （头被裁、眯眼笑）——看着像废片。修法三件套：
 
 1. 造一张 9:16 拉版参考图（脸锁不变，上下留白 + 肩胸入画），当 `<Picture 1>` 喂；
@@ -597,13 +639,15 @@ python -c "from PIL import Image; im=Image.open('assets/host_look.jpg').convert(
 ### 口型验收：`sync_pic.py` 的嘴框要按新构图重调
 
 新构图脸在画面上半部，嘴框不再是 `0.28,0.36,0.72,0.56`，要用
-`"0.36,0.38,0.64,0.48"`（704×1280 实测）。框落错会得到完全无意义的结果。
+`"0.36,0.38,0.64,0.48"`（自拍/中景构图实测）。框落错会得到完全无意义的结果。
+**超分后要重跑一次 `sync_pic.py`**——确认超分没把口型弄糊。
+- Real-ESRGAN 本机已装在 `tools/esrgan/`（**不入 Git 仓**）；换机器时跑 `python <skill>/scripts/fetch_esrgan.py` 自动下载（直连不通会自动走 gh-proxy 镜像）。
 
 **口型铁律**（写错就前功尽弃）：
 - 提示词必须用 `<Picture 1>` 绑定参考图、`<Audio 1>` 绑定配音
 - **台词不要写进提示词**（台词由 `<Audio 1>` 提供）
 - 必须要求 "lips resting closed during pauses"、手部动作、锁五官（鼻型）
-- 出画分辨率统一 **576×1024**，不要降（降了脸会崩、鼻头大、口型发糊）
+- 出画分辨率统一 **576×1024**，交给超分补足（不要靠降分辨率省时间，也不要顶 704 硬扛 OOM）
 
 ## 小窗参数
 
