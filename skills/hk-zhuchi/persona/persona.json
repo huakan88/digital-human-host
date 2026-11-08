@@ -1,8 +1,8 @@
 {
   "name": "短发男生数字人（本人音色 huakan · 以本人照片为准）",
   "renoise": {
-    "reference_material": "assets/host_me_look.jpg",
-    "note": "定妆照由用户本人正脸照（assets/host_me_ref.jpg）经 MiniMax image-01 + subject_reference 生成；七视图在 assets/host_me_7view.jpg，单视图在 assets/host_me_views/。换人：改 reference_material 指向新的定妆照。"
+    "reference_material": "assets/host_me_wide.jpg",
+    "note": "出画基准＝用户原始正脸照（2048×2048）。第二份以后再参考七视图；技能实测：原始照片当基准比二次生成的定妆照更像本人（定妆照会脸变圆、鼻子变大）。"
   },
   "look": "年轻东亚男性，约 170cm，黑色短寸（两侧推短）、无胡须，橄榄绿亨利领短袖（三个纽扣）+ 深灰长裤 + 白色板鞋，纯白无缝背景，室内柔和均匀光线，竖屏半身构图",
   "voice": {
@@ -21,7 +21,12 @@
       "720p": 0.4,
       "480p": 0.4
     },
-    "note": "本机 MiniMax H3 单段上限约 10 秒（17k+5 帧网格 @24fps）。price_per_second 是 MiniMax H3-Highspeed 768P 的元/秒。"
+    "note": "本机 MiniMax H3 单段上限约 10 秒（17k+5 帧网格 @24fps）。price_per_second 是 MiniMax H3-Highspeed 768P 的元/秒。",
+    "ratio_wide": "16:9",
+    "wide_size": [
+      1024,
+      576
+    ]
   },
   "acts": {
     "full": "warm eye contact, expressive face, natural hand gestures",
@@ -46,5 +51,37 @@
     "zh": "100%",
     "note": "本机 H3 + VoxCPM 组合只实测过普通话；外语段需要先确认口型锚定效果。"
   },
-  "prompt_big": "Use the exact same adult Chinese man in <Picture 1> as the single presenter. Preserve his facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion, no drift. Preserve his recognizable facial geometry, short black crew-cut hair, age, skin tone, and the olive-green short-sleeve henley shirt with a three-button placket. He stands upright facing the camera in a MEDIUM SHOT framed from the mid-chest up, with generous empty headroom above his head, against a flat seamless pure white (#FFFFFF) background under even soft lighting. He is presenting to the viewer: warm eye contact, expressive face. His hands and upper body move clearly and continuously while he talks — he raises one open hand to chest height to emphasize a point, lowers it, then brings both hands up briefly with palms open, and his shoulders and torso shift naturally with the delivery; the gestures are fully visible in frame. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and subtle head nods. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes, camera movement or extra people."
+  "prompt_big": "Use the exact same adult Chinese man in <Picture 1> as the single presenter. Preserve his facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion, no drift. Preserve his recognizable facial geometry, short black crew-cut hair, age, skin tone, and the olive-green short-sleeve henley shirt with a three-button placket. He stands upright facing the camera in a MEDIUM SHOT framed from the mid-chest up, with generous empty headroom above his head, against a flat seamless pure white (#FFFFFF) background under even soft lighting. He is presenting to the viewer: warm eye contact, expressive face. His hands and upper body move clearly and continuously while he talks — he raises one open hand to chest height to emphasize a point, lowers it, then brings both hands up briefly with palms open, and his shoulders and torso shift naturally with the delivery; the gestures are fully visible in frame. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and subtle head nods. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes, camera movement or extra people.",
+  "prompt_template_wide": "Use the exact same adult Chinese man in <Picture 1> as the single presenter. Preserve his facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion. Preserve his recognizable facial geometry, short black crew-cut hair, age, skin tone, and the olive-green short-sleeve henley shirt with a three-button placket. LANDSCAPE 16:9 framing: he stands facing the camera in a medium shot framed from the waist up, centred in the wide frame with clear empty space on BOTH sides and generous headroom above his head, against a flat seamless pure white (#FFFFFF) background under even soft lighting. He is presenting to the viewer: warm eye contact, expressive face. His hands and upper body move clearly and continuously while he talks — he repeatedly raises one hand to chest height with an open palm to make a point, lowers it, and his shoulders and torso shift naturally; at least one hand gesture is clearly visible in every sentence, the arms are never still. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and subtle head nods. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes or extra people.",
+  "prompt_big_wide": "Use the exact same adult Chinese man in <Picture 1> as the single presenter. Preserve his facial geometry EXACTLY as in <Picture 1>: identical face shape, identical nose shape and nose width, identical mouth and eye proportions, identical hairline and ears. No beautification, no face slimming, no nose enlargement, no distortion. Preserve his recognizable facial geometry, short black crew-cut hair, age, skin tone, and the olive-green short-sleeve henley shirt with a three-button placket. LANDSCAPE 16:9 framing: he stands facing the camera in a medium shot framed from the waist up, centred in the wide frame with clear empty space on BOTH sides and generous headroom above his head, against a flat seamless pure white (#FFFFFF) background under even soft lighting. He is presenting to the viewer: warm eye contact, expressive face. His hands and upper body move clearly and continuously while he talks — he raises one open hand to chest height to emphasize a point, lowers it, then brings both hands up briefly with palms open, and his shoulders and torso shift naturally; the gestures are fully visible in the wide frame. Speak Mandarin Chinese precisely synchronized to <Audio 1>: natural mouth and jaw movement during speech, lips resting closed during pauses, no additional words or music. Show gentle breathing, natural blinks and subtle head nods. Keep identity, outfit, framing and camera stable throughout. Keep realistic skin pores and fine facial detail without beauty-filter smoothing. No captions, text, logos, scene changes or extra people.",
+  "prompt_relay_zh": "以<Picture 1>（和参考的其它角度照片）中的这位人物为唯一主体。【外观全部照抄参考图】：脸型与骨相、五官位置与比例、眉形眼型、发际线与耳朵、**鼻子必须一模一样（鼻梁宽度、鼻头大小、鼻翼宽度都不得变）**、肤色与真实皮肤质感（保留毛孔、轻微不均匀）、年龄感、发型。禁止磨皮、美颜、瘦脸、放大眼睛或鼻子、卡通化、3D 渲染感。【场景 · 硬要求】**人物坐在书桌前说话**：上半身坐姿，双肩放松，手臂自然放在桌面上，画面前景可见桌面与桌沿。背景二选一（按 persona.scene 指定，默认书房）：① 书房——浅木色书架、少量书脊、暖白灯光、浅景深虚化；② 纯白——无缝白色影棚背景、柔和顶光。背景必须干净、不抢戏，不出现文字、logo、其他人的正脸。【景别与构图】半身中景：头顶留白约一成，画面下沿到桌面/腰部，**双手全程在画面内**；人物居中。**禁止推近、禁止变焦、禁止切成特写、禁止裁掉手或只拍到脸**；机位固定不动。【动作】说话时双手做自然的小幅手势（抬到胸口高度比划、放下、再抬），肩颈有呼吸起伏，眨眼自然；不要夸张。【说话】人物跟着<Audio 1>说话，口型逐字同步，停顿自然闭嘴。画面干净：不加字幕、不加文字、不换镜、不出现第二个人。",
+  "look_relay": "原定妆照直出（白底+橄榄绿亨利领+半身近景），只做说话动画",
+  "_prompt_relay_note": "中转/本机都可用这段中文提示词。含 {outfit} 占位符，由 backend 代入 persona.outfits 里的一件。",
+  "outfits": [
+    "深蓝牛仔外套内搭纯白圆领T恤，领口别一枚黑色领夹麦克风",
+    "雾灰色细针织开衫内搭浅蓝衬衫，领口别一枚黑色领夹麦克风",
+    "黑色休闲西装外套内搭白色圆领T恤，领口别一枚黑色领夹麦克风",
+    "军绿色工装衬衫（扣到第二颗，内搭白色圆领T恤），领口别一枚黑色领夹麦克风",
+    "米色针织POLO衫，领口别一枚黑色领夹麦克风",
+    "藏青色牛津纺衬衫（袖口挽起），领口别一枚黑色领夹麦克风"
+  ],
+  "_outfit_note": "每期换一件：出画前设环境变量 HK_OUTFIT=0..5（或 HK_OUTFIT=auto 按日期轮换）。不设就默认第 0 件（深蓝牛仔外套）。",
+  "voice_speed": 1.0,
+  "_voice_speed_note": "用户 2026-10-31 反馈「声音可以快一点」，从 0.85 提到 1.0",
+  "reference_extra": [
+    "assets/host_me_views/view_1.jpg"
+  ],
+  "_reference_extra_note": "中转出画时追加的多角度参考图（七视图里挑的），用来锁身份。",
+  "host_first_frame": false,
+  "host_first_frame_file": "assets/host_frame.jpg",
+  "_host_first_frame_note": "首帧图生视频：首帧=本人真实照片，只做说话动画。换衣服需提供本人穿该衣服的真实照片，放到技能 assets/ 下并改 host_first_frame_file。",
+  "_likeness_note": "2026-10-31 定稿：中转不接受首帧+音频，故用「完全一致的参考图 + 最少的文字描述」来降低改脸。换衣服＝换 host_me_look.jpg 为本人穿该衣服的真实照片。",
+  "_framing_note": "横版用 host_me_wide.jpg（原照 16:9 裁切）；竖版用 host_me_look.jpg。构图约束写进提示词，避免模型推成特写。",
+  "_outfit_prompt_note": "提示词里保留 {outfit} 占位符：出画时由 pick_outfit() 代入当期那套衣服。除衣服之外不写任何外观描述——写得越多，模型越容易连脸一起重绘。",
+  "outfit_photos": {},
+  "_outfit_photos_note": "换装的照片表。把「你穿第 N 套衣服」的真实照片放进 assets/ 并在这里登记，出画时会自动用那照片当参考图、保持衣服不变；没登记的第 N 套会退回文字描述（会改脸，不推荐）。",
+  "base_look": "assets/host_me_look.jpg",
+  "_framing_rule": "坐桌旁、半身、双手入画、禁推近；背景=书房或纯白",
+  "scene": "study",
+  "_scene_note": "study = 坐书桌旁 + 书房背景（默认）；white = 坐书桌旁 + 纯白背景"
 }

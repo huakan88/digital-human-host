@@ -102,6 +102,91 @@ E:\AI\envs\voxcpm\Scripts\python.exe sync_report.py 成片.mp4 "起-止,起-止,
 > 相邻子窗会 ±10 帧乱跳）。所以可承诺的是「全局 ≤2 帧」，做不到逐字级专业对白。
 > 真要逐字级，只能上嘴型重生成模型（LatentSync / Wav2Lip），那是独立安装工程。
 
+### 「嘴部静止」这个失败模式（2026-10-30 补充）
+
+自动相关性低（<0.4）时**不要**把它当成"偏移多少帧"，它多半是这一条素材
+**嘴根本没在动** —— 嘴一直是半张状态，和音频没有任何关系。平移救不了，只能重出。
+
+**判定方法（唯一可信）**：拉 72 帧（≈2.4 秒）的长帧条，看嘴形有没有变化。
+
+```bash
+python scripts/lipsync_long.py <成片或片段> <起始秒> 72      # 默认嘴框就是横版唇部
+# 输出：最佳滞后 ±N 帧 + corr + 一张 72 格的长帧条
+```
+
+- **72 帧里嘴形几乎不变** → 这条素材废了，重出（换种子），别调时间轴
+- 嘴形在变、但整体错开 → 才用 `gen/nudge.json` 定点平移
+- `corr < 0.4` 时**不要采信那个 lag 数字**：实测同一段能给出 ±500ms 且方向相反
+
+**重出的具体做法**（一次试两个种子，挑好的）：
+
+```bash
+for seed in 1201 9931; do
+  HK_SEED=$seed python scripts/backend.py run tasks.json --backend local --force --only s7
+  cp gen/renoise-s7.mp4 gen/s7_seed$seed.mp4
+done
+# 然后每条都拉长帧条看，挑嘴形变化最明显的那个
+```
+
+**为什么会随机出现**：口型一致性对种子敏感。同一句台词、同一张定妆照，
+有的种子嘴跟得很紧，有的种子嘴几乎不动。这不是参数没调好，是抽样问题。
+
+**验收顺序（更新）**：
+1. 拉长帧条看**嘴形有没有变化**（这是第一道门，不过就重出）
+2. 过了再量滞后，`|lag| ≤ 2 帧` 才放行
+3. 只有 1~3 帧的小偏差才用 nudge 平移
+
+### 定不了的时候：A/B/C 人眼定标（2026-10-30 补充）
+
+自动相关性在 ±100ms 内**不可靠**（实测同一段给出 −458ms 和 +458ms，方向相反）。
+当长帧条看不出明显错位、但听感/观感就是不对时，别再纠结数字，让眼睛定标：
+
+```bash
+python scripts/ab_offsets.py <片段> <配音.wav> AB_对比.mp4 6
+# 生成三段同一句：A 画面往前 0.2 秒 / B 原始 / C 画面往后 0.2 秒
+```
+放到最大看，只盯**嘴和音的先后**。选定哪个，就用 `gen/nudge.json` 按段调：
+
+```json
+{"s7": -6}     // 该段画面提前 6 帧；正数=画面往后
+```
+
+**这一招的价值**：把「我测不准」变成「用户能判断」，一次就问对，
+比反复重出画省得多（每段重出约 4 分钟，改偏移只要重新渲染）。
+
+**优先级顺序（最终版）**：
+1. 拉 72 帧长帧条 → 嘴形几乎不变 → **重出**（换种子）
+2. A/B/C 对比 → 人眼选偏移 → `nudge.json` 定点平移
+3. 还不对 → 该段改成版式卡，不露脸
+4. **永远不要**拿 `corr<0.4` 的 lag 数字直接去批量平移
+
+### 出画还有个「构图漂移」要查（2026-10-30 补）
+
+H3 偶尔会在生成过程中**把镜头怼到脸上**——开头还是正常头肩中景，两秒后只剩半张脸，
+看起来像"半个截图"。这不属于口型问题，但一样废片段。
+
+**验收时除了看嘴，还要看构图**：抽片段的首帧、中间、末帧三张，
+如果人物大小明显变化（尤其突然拉近到只剩五官），**换种子重出**，
+挑一个全程稳定的（实测换两次种子就能拿到稳定的）。
+
+```bash
+for t in 0.3 1.6 3.2 4.6; do ffmpeg -v error -y -ss $t -i clip.mp4 -frames:v 1 chk_$t.png; done
+# 拼成一张对比图，人物大小应当基本一致
+```
+
+### nudge 的符号别再搞反（2026-10-30 踩坑）
+
+`gen/nudge.json` 的值会进到 `seg_clip` 的 `-ss (off + lag)`：
+
+- **正数 = 画面提前**（从片段更靠后的位置开始切，内容显得更早）
+- **负数 = 画面延后**（从更靠前的位置切，内容显得更晚）
+
+要判断该用哪个，看逐帧表（`frame_pairs.py`）：
+**嘴比音频早闭嘴 → 画面要延后 → 用负数。**
+
+这次万圣节开场：嘴在第 20 帧闭嘴、音频第 29 帧才停 → 嘴早 10 帧 → 应该
+`{"s1": -10}`。我第一次写成 +10，结果更糟（嘴更早了），重渲一次才发现。
+
 ## 口型验收与修正规范（2026-10 血泪版）
 
 ### 一句话原则
@@ -221,6 +306,200 @@ for t in 2 8 14 22 30 38; do ffmpeg -v error -y -ss $t -i clip.mp4 -frames:v 1 -
 用户自己的作品直接进 `public/clips/`，`tag` 写 `我的作品`，`src_label` 写清项目名。
 用户自己的片子放进片子里是**最强的可信度**，别只当素材，要在文案里点名"这是我自己做的"。
 
+## 横版 16:9（**约束与竖版完全一致**）
+
+竖版 9:16 和横版 16:9 是同一套规范，只是画幅不同。**素材优先、口型强制项、验收流程一条都不减。**
+
+### 出画与装配（本仓库已支持 --wide）
+
+```bash
+# 1) 稿子里每段用横版分辨率（1024×576 是 32 的倍数，H3 能出）
+#    script.json: "size": [1024, 576]
+python scripts/make_tasks.py            # ratio 自动跟 size 走（16:9），
+                                       # 提示词自动切 persona 的 prompt_template_wide
+
+# 2) 主画面（1920×1080）
+python scripts/build_media.py --full --wide
+
+# 3) 口型验收（同竖版，嘴框按横版构图调）
+python scripts/sync_pic.py <片段> <起始秒> 12 "0.30,0.30,0.70,0.55"
+
+# 4) 切数字人窗口也用 --wide
+python scripts/make_host_wrap.py --project . --koubo <横版工程> --host-segs s1,s8 --wide
+```
+
+横版提示词已经写进两个 persona（`prompt_template_wide` / `prompt_big_wide`），
+要点：**中景、腰部以上、人物居中留两侧空地、头顶留白**，不要手机自拍构图。
+
+### 中期包装换成 koubo 横版模板
+
+```bash
+cp -r <koubo-video>/templates/wide ./koubo          # 横版模板
+python scripts/patch_koubo_wide_host.py ./koubo     # 接入数字人窗口层（host prop）
+python scripts/make_wide_beats.py ./koubo --tabs "现象|证据|规律|结论"
+cd koubo && npx remotion render src/index.ts Wide out/wide.mp4 --props='public/beats.json'
+```
+
+横版模板的卡片库很全（`components.tsx`）：`H1` / `Stat` / `BarChart` / `Checklist` /
+`NumberedList` / `MediaCard`（放真实片段）/ `Timeline` / `Compare` / `QuoteCard` / `EndCard` …
+`make_wide_beats.py` 已经把竖版那套 beat（stat/bars/check/rank/clip/cliptext）映射过去了；
+想用别的卡片就在 `beats_wide.json` 里按段 id 直接写 `{card, props}`。
+
+**数字人窗口**用 `beats.json` 里的 `host` 字段：
+```json
+"host": {"src": "main.mp4", "windows": [{"from": 0, "to": 87}]}
+```
+窗口内的拍会**只留字幕、卡片让位**，露出下面的数字人主画面 —— 和竖版同一个思路。
+
+### 横竖版差异（只有这些）
+
+| 项 | 竖版 9:16 | 横版 16:9 |
+|---|---|---|
+| 出画尺寸 | 576×1024（或 1080p） | 1024×576 |
+| 成片尺寸 | 1080×1920 | 1920×1080 |
+| 构图提示词 | 手机自拍、手臂伸向镜头 | 中景、腰以上、两侧留空、头顶留白 |
+| 包装模板 | `koubo-video/remotion-template` | `koubo-video/templates/wide` |
+| beat 定义 | `patch_koubo_episode.py` 写进 Weekly.tsx | `beats_wide.json` + `make_wide_beats.py` |
+| 露脸位置 | 可全屏，也可缩成左下角圆形小窗 | 一般全屏出镜，卡片让位 |
+
+**素材密度、单镜头一次生成、口型验收、署名——全部照旧。**
+
+### 横版实测结论（2026-10-29 首次跑通）
+
+- **出画**：`size: [1024, 576]` → H3 正常出片，横构图、白底、手部动作都在画面里
+- **成片**：`build_media.py --full --wide` → 1920×1080，帧栅格与竖版一致
+- **嘴框（横版）**：`"0.34,0.28,0.66,0.58"`（半身、居中构图）；竖版那个 0.28/0.36/0.72/0.56 不适用
+- **底版**：`python make_backdrop.py "" 1920 1080`（现在会写进 `HK_PROJECT` 目录）
+
+**定妆照（重要）**：用**原始照片**当出画基准，比用二次生成的定妆照更像本人。
+```bash
+HK_LOOK=assets/host_me_photo.jpg python make_tasks.py
+```
+实测：拿原图当基准，脸型/鼻型/发际线都对得上；换成生成过的 `host_me_look` 会脸变圆、鼻子变大。
+
+**本机 TTS 卡死时的兜底**：VoxCPM 服务偶发「加载完 9GB 但不响应」，`make_voice` 会一直挂着。
+这时先用豆包云端把音出来，别等：
+```bash
+python voice_doubao.py            # 直接调 backend.tts_doubao，几秒出音
+```
+（豆包约 ¥0.59/2 分钟，出片后再换回克隆音色也可以）
+
+**内存硬约束**：ComfyUI 开着 H3 权重时占 ~20GB，31GB 内存会只剩 0.9GB，
+VoxCPM 直接换页卡死。**先出音再出画**，或者先 `POST http://127.0.0.1:8188/free`
+（`{"unload_models":true,"free_memory":true}`）把 H3 权重卸掉。
+
+### 横版完整流程（2026-10-29 实跑：万圣节这期，77 秒成片）
+
+按这个顺序走，一条命令都不多余：
+
+```bash
+# 1) 稿子：每段 size 写 [1024, 576]，一段一句，≤45 字
+python <skill>/scripts/make_tasks.py            # ratio 自动 16:9，提示词自动切 *_wide
+
+# 2) 配音（豆包 Vivi，20 段约 1 分钟）
+python voice_doubao.py
+
+# 3) 出画：露脸段一段一次生成，用 gen/host_segs.json 指定
+python <skill>/scripts/backend.py run tasks.json --backend local --only s1,s5,s16,s20
+
+# 4) 主画面（1920×1080）+ 底版
+python <skill>/scripts/make_backdrop.py "" 1920 1080
+python <skill>/scripts/build_media.py --full --wide --no-asr
+
+# 5) 横版包装工程
+cp -r <koubo-video>/templates/wide ./koubo
+python <skill>/scripts/patch_koubo_wide_host.py     ./koubo   # 数字人窗口层
+python <skill>/scripts/patch_koubo_wide_mediatext.py ./koubo  # MediaText：素材铺底 + 大字
+python <skill>/scripts/make_host_wrap.py --project . --koubo ./koubo --host-segs s1,s5,s16,s20 --wide
+python <skill>/scripts/make_wide_beats.py ./koubo --tabs "现象|起源|结论"
+
+# 6) 渲染
+cd koubo && npx remotion render src/index.ts Wide out/wide.mp4 --props=public/beats.json
+```
+
+**两个新东西（这期加的）**
+
+1. **`MediaText` 卡**（`patch_koubo_wide_mediatext.py`）
+   横版模板原来只有白底排版卡，没有「文字压素材」。这个卡 = 素材铺满 + 压暗 + 大字居中，
+   等价于竖版的 `cliptext`。参数：`{src, video?, from?, title, sub?, dim?}`。
+
+2. **`make_wide_beats.py` 现在读 `public/timeline.json`**
+   以前它自己按 `sec + 0.25` 逐段重算时长，结果数字人窗口和主画面对不上
+   （实测 0-4.47s vs 主画面 0-4.23s，最后一段甚至超到 81.7s）。
+   **帧栅格是唯一权威**，所有 beat 的 `from/dur` 都必须从 timeline.json 取。
+
+### 拿「别人的科普片」当素材库（这期最省事的一招）
+
+找到一条画面配得好的科普片（例：B站 `BV17e411R7nc`「5分钟介绍万圣节的来历」），
+**按时间轴抽帧拆成十几个独立画面**，一格讲一个点，比自己找图快得多：
+
+```bash
+for t in 0 20 45 70 95 120 145 170 195 220 245 270 295; do
+  ffmpeg -v error -y -ss $t -i ref.mp4 -frames:v 1 -vf "scale=300:-2" ex_$t.png
+done
+# 拼成对照图挑画面，再把选中的图复制进 koubo/public/clips/
+```
+署名写 `Bilibili · 作品名 · BV号`。**抽帧看清内容再配文案**，别凭时间猜。
+
+### 横版两个必踩的 UI 坑（2026-10-30 补）
+
+**1. 章节条被素材卡盖住**
+`Wide.tsx` 里 `TabBar` 原本渲染在 `Card` 之前，而 `MediaText` 是铺满画面的
+`AbsoluteFill`，章节条就被压在底下了。必须把 TabBar 放到 Card **之后**：
+```tsx
+<K.Page ...><Card {...b.props}/>{tabs&&b.tab!==undefined&&<K.TabBar tabs={tabs} active={b.tab}/>}</K.Page>
+```
+（`patch_koubo_wide_tabbar.py`）
+
+**2. 章节条的默认配色在素材上不可读**
+模板默认是浅灰胶囊（#F2F2F2）+ 灰字，放在深色战场画面上几乎看不见。
+改成半透明深底 + 白字、当前项反白（`fix_tabbar_style.py`）。
+
+**3. 静态图连播会像 PPT**
+`MediaText` 原来是静止图 + 静止大字。加了极慢推近（1.0→1.06）+ 前 12 帧文字淡入上移
+（`patch_koubo_wide_motion.py`）。注意：加了推镜后每帧都在变，同样 CRF 下体积会翻倍，
+交付时把 CRF 调到 24 左右（78 秒 / 1080p ≈ 16MB）。
+
+### groups.json 会被「--only 单段」覆盖（2026-10-30 补）
+
+`backend.py run --only s3` 只跑一段时，它写出的 `groups.json` **只有这一段**。
+之后跑 `build_media.py`，其他段的 `seg_src` 就找不到，**静默退回底版**——
+表现是「某几个数字人窗口里没有人，只有背景」，非常难查。
+
+现在 `build_media.py` 会在读完 groups.json 后再**扫一遍 `gen/renoise-<id>.mp4`**，
+文件在就算有出画，并打印「groups.json 补了 N 段」。
+
+**排查口诀**：窗口里没数字人 → 先看 `main.mp4` 对应时间点有没有人 →
+没有人就查 `gen/renoise-<id>.mp4` 在不在、`groups.json` 里有没有这一段。
+
+**另一个教训**：改完稿子（旁白时长变了）要重跑 `build_media`，
+不然帧栅格还是旧的；但重跑前先确认 `gen/` 里的片段是给**新稿**出的。
+
+### 境外站点全线不通时，用 gh-proxy 取 GitHub（2026-10-30 实测）
+
+本机 `github.com` / `api.github.com` / `raw.githubusercontent.com` / `video.twimg.com`
+**全部 000**（连本地 Clash 也不通），但这两个 GitHub 代理**可达**：
+
+```
+https://gh-proxy.com/https://api.github.com/repos/<owner>/<repo>       # 元数据
+https://gh-proxy.com/https://github.com/<owner>/<repo>/archive/refs/heads/<branch>.zip
+```
+
+实测用它把 `tsonglew/chess-cn`（45.8MB）整包拉下来了，里面的 `media/`
+**自带项目官方演示视频**（`demo.mp4` 竖屏实机录屏、`general-cinematic.mp4` 横屏特写）——
+比任何 AI 概念图都强，直接进片。
+
+**两条经验**：
+1. 开源项目的 `media/` 目录常放官方 demo 视频，优先用它们，别自己生成
+2. `api.github.com` 的返回里能读到默认分支（不一定叫 main）、许可证、homepage（在线 demo 地址）
+
+**竖屏素材放进横版**：`objectFit: contain` 会变成中间一条窄带，很难看。
+正确做法是用 ffmpeg 裁成 16:9 再 cover：
+```bash
+ffmpeg -i demo.mp4 -vf "crop=592:333:0:260,scale=1280:720:flags=lanczos" -an out.mp4
+```
+`y=260`、`333` 高是按该片实测选的（避开顶部 UI 和底部提示条）。
+
 ## 工作流（照着走）
 
 ### Step 0 · 环境自检（第一次做，或换机器后）
@@ -260,7 +539,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File <skill>\doctor.ps1
 ```bash
 python <skill>\scripts\make_tasks.py                 # script.json → tasks.json
 python <skill>\scripts\backend.py quote tasks.json   # 先报价：段数 · 秒数 · 预估花费
-python <skill>\scripts\backend.py run   tasks.json   # 配音 → H3 出画 → gen\renoise-<id>.mp4 + ids.json
+python <skill>\scripts\backend.py run   tasks.json   # 配音 → 本机 H3 出画 → gen\renoise-<id>.mp4 + ids.json
 ```
 
 **口型的铁律**（写错就前功尽弃）：
@@ -384,8 +663,15 @@ examples/cat/                 一期完整样例（工程目录）
 - **`build_media.py --no-asr`**：只改卡片/字幕时复用已有时间轴
 - 别开 `--low-vram`：它强制权重异步换出，每段多花 ~40 秒
 
-真正的捷径是云端 H3（`--backend cloud-h3`，¥0.40/秒，约快 10 倍），
-但 Token Plan 免费档会返回 402 code 2068。
+主力永远是**本机 H3**（¥0，慢）。要快就走可选通道，但**换通道前必须先问用户**，别默默替他花钱：
+
+| 通道 | 命令 | 成本 | 速度 |
+|------|------|------|------|
+| 本机 H3（**唯一通道**） | `--backend local`（默认） | ¥0 | 每段约 100 秒固定开销 |
+
+> **中转（token01）已于 2026-10-31 彻底移除**：它不会照我们的配音时间轴说话
+> （同一句台词它自己重说一遍，发声长 10~15%），还会把相邻两段合并成一次生成，
+> 切出来的前段必然错位。数字人只能走本机 `--guide-audio`。
 
 ## 花字卡片：必须写 `until`
 
@@ -545,3 +831,159 @@ python scripts/make_host_wrap.py --project <本工程> --koubo <koubo 工程> --
 - 终端直接打印 `RAW` / `TEXT` 两行，粘进 koubo 的 `Weekly.tsx` 即可
 
 前提：本工程要先用 `--full` 出过 `public/main.mp4`（全屏数字人），并且过了 `lipsync_repair.py`。
+
+
+## 口型强制流程（2026-10-31 定稿 · **每个视频都必须走完**）
+
+> 背景：**数字人只走本机 `--guide-audio`**（口型由我们的配音逐帧驱动）。中转那条路已移除——
+> 实测同一句台词：我们配音有效发声 4.63 s，H3 输出 5.34 s；停顿分布也不同。
+> 所以「拿片段音轨和配音做互相关来对齐」是**错的**（相关性只有 0.2~0.4，对齐到 0 ms 是假象）。
+> 能做的只有三件事：**裁起手延迟、保证帧栅格、人眼判读**。
+
+### 步骤（缺一不算做完）
+
+```bash
+# 1) 出画：露脸段每段一次生成、每段 ≤6 秒；本机用 --guide-audio
+python backend.py run tasks.json --backend relay-h3 --only s1,s5,s9     # 或 --backend local
+```
+
+```bash
+# 2) 裁起手延迟：H3 开头常有一段「还没开口」的准备时间（实测 0.1~0.7 s）
+python scripts/trim_leadin.py
+```
+
+```bash
+# 3) 帧栅格装配：frames[i] = round((配音秒数 + 0.25) * 30)，视频 -frames:v 卡死、旁白 apad+atrim 卡死
+#    build_media.py 已经这么做；自定义装配（竖版/横版自写脚本时）必须抄这个规则
+#    出片前校验：main.mp4 与 narration.wav 时长必须相等
+ffprobe -v error -show_entries format=duration -of csv=p=0 public/main.mp4
+ffprobe -v error -show_entries format=duration -of csv=p=0 narration.wav
+```
+
+```bash
+# 4) 人眼判读（唯一可信的验收）：上排嘴部逐帧，下排同帧配音能量
+python scripts/img_sync_check.py 片段或成片 配音.wav 2.0 12 qc/sync.png
+```
+
+**判读标准**：嘴张得最大的那几帧要落在**蓝色高能量条**上；能量接近零的帧嘴必须闭着。
+对不上几格就是差几帧；整片段内节奏漂移属于模型能力边界，**不要用平移去硬修**。
+
+```bash
+# 5) 自动量化只用来抓大偏（相关性 <0.35 时不要采信那个数字）
+python scripts/sync_openness.py 片段 配音.wav 8
+python scripts/speech_stats.py s1,s5,s9          # 判断 H3 是不是重说了（发声时长差 >10% 就是）
+```
+
+### 硬规定
+
+1. **每段露脸 ≤6 秒**；超过就拆句（长片段后半段口型必松）
+2. **一个连续镜头只出一次画**；两次生成拼一个窗口 = 可见跳切
+3. **不要用片段自带音轨去和配音做互相关**——它不是同一段声音，会得出假的 0 ms
+4. **不要在没有 `img_sync_check.py` 图的情况下声称「口型已对好」**
+5. 出画前必须校验 pad 音频时长 == 该段配音时长（不等就别提交），并**禁止把相邻露脸段合并出画**（`--merge 0`）
+
+### 已知能力边界（写进交付说明，别硬扛）
+
+- 本机 H3 `--guide-audio`：口型逐帧跟随配音，是当前唯一可用路径
+- 本机 H3 `--guide-audio`：口型由配音逐帧驱动，明显更实，但速度慢（约 4~6 分钟/段）
+- 要逐字级只能上专门的唇形模型（LatentSync / Wav2Lip），属独立工程
+
+
+## 服装：**每个话题换一套，同一支视频内不许换**（2026-10-31 定稿）
+
+`persona.json` 里的 `outfits` 是一张表，出画时这样挑：
+
+| 优先级 | 来源 |
+|---|---|
+| 1 | 环境变量 `HK_OUTFIT=<数字>` 强制指定（重出/调试用） |
+| 2 | 本工程 `gen/outfit.json`（**首次出画时写入并固定**，后面每一段都读它） |
+| 3 | 全局计数器 `~/.hk_outfit_counter`：新工程（= 新话题）自动 +1，所以**每个话题换一套** |
+
+```bash
+# 看这一期穿哪套
+cat gen/outfit.json
+# 临时换一套
+HK_OUTFIT=3 python backend.py run tasks.json --backend relay-h3 --only s1
+```
+
+**换衣服的正确姿势**：先有一张你穿那件衣服的**真实照片**，替换 `assets/host_me_look.jpg`
+（横版换 `host_me_wide.jpg`），再出画。**不要指望模型凭文字换装还保持五官一致**——
+实测它会顺手把脸改宽、鼻子放大。
+
+
+## 换装（2026-10-31 实测修订：必须照片驱动）
+
+**实测结论**：同一段台词、同一参考图，只加一句「把衣服换成深蓝牛仔外套」，
+出来的**脸会明显漂移**（变宽、眼型变、背景也跑）。也就是说
+**靠文字换装 = 牺牲相似度**，这在「要求严格像本人」的片子里不能接受。
+
+所以规定：
+
+| 情况 | 做法 | 结果 |
+|---|---|---|
+| 你有「本人穿第 N 套衣服」的真实照片 | 把照片放进 `assets/`，在 `persona.outfit_photos` 里登记 `{"0": "assets/look_0.jpg"}` | ✅ 换装且脸不变（照片本身就是参考） |
+| 你只有文字描述 | 会走文字分支，日志会打「只有文字描述，实测会轻微改脸」 | ⚠️ 脸可能漂 |
+| 不想换装 | 不登记 `outfit_photos`，当前那套就保持参考图原样 | ✅ 脸最稳 |
+
+```bash
+# 看这一期用哪套、是不是照片驱动
+cat gen/outfit.json
+# 强制指定第 2 套（哪套由你说了算）
+HK_OUTFIT=2 python backend.py run tasks.json --backend relay-h3 --only s1
+```
+
+**每个话题一套**：`~/.hk_outfit_counter` 全局递增，新工程（新话题）自动换下一套；
+同一支视频读本工程的 `gen/outfit.json`，**全片固定一套**。
+
+## 中转（token01）已于 2026-10-31 移除
+
+数字人出画**只走本机 H3 的 `--guide-audio`**。
+
+原因：中转 H3 会自己重排停顿（实测同一句台词它的发声比我们的配音长 10~15%），
+嘴跟着它自己的节奏动，**任何平移都补不回来**；再加上它会把相邻两段合并成一次生成，
+切出来的前段必然错位。本机 `--guide-audio` 是逐帧拿着我们的配音推嘴形，才是可用的路径。
+
+`--backend relay-h3` 现在会直接报错退出。
+
+
+## 语速：默认 1.2×（2026-10-31 定）
+
+用户拍板：**大多数片子就用这个语速**。`tts_speed = 1.2`（VoxCPM 走 atempo 倍率），
+配合 huakan-tts 的 `--tight`（去掉短分句的逗号停顿）。实测一句话
+"这一针打进去…"：1.0 → 7.20s，1.15 → 6.94s，**1.2 → 5.05s**，人感和节奏都正好。
+
+```bash
+# 直接跑就是 1.2×
+python <skill>\scripts\backend.py tts tasks.json
+# 临时改：改 local-backend.json 的 tts_speed，或 HK_TTS_SPEED
+```
+
+
+## 出画场景规范（2026-11-01 定 · 默认书房，可切纯白）
+
+人物出现时**一律坐在桌旁**，不要站着、不要走动、不要只拍脸。
+
+| 项 | 规定 |
+|---|---|
+| 姿势 | **坐姿，上半身入画**，双臂自然放在桌面，前景能看到桌面与桌沿 |
+| 背景 | 二选一：**① 书房**（浅木色书架 + 暖白灯 + 浅景深虚化，默认）；**② 纯白**（无缝白背景 + 柔和顶光） |
+| 景别 | 半身中景，头顶留白约一成，画面下沿到桌面/腰部，**双手全程在画面内** |
+| 镜头 | **固定机位**：禁止推近、变焦、切特写、裁掉手 |
+| 动作 | 说话时双手小幅自然手势，肩颈有呼吸起伏，自然眨眼 |
+| 禁止 | 站姿、走动、只拍脸/头肩特写、背景杂乱、出现文字或 logo、出现第二个人 |
+
+```bash
+# 切背景：改 persona.json 的 scene = "study"（书房，默认）| "white"（纯白）
+python -c "import json,pathlib;p=pathlib.Path(r'<skill>/persona/persona.json');d=json.loads(p.read_text(encoding='utf-8'));d['scene']='white';p.write_text(json.dumps(d,ensure_ascii=False,indent=2),encoding='utf-8')"
+```
+
+**注意**：参考图（`assets/host_me_look.jpg` / `host_me_wide4.jpg`）最好本身也是"坐桌前"或至少半身，
+否则模型要自己补桌面，容易把构图带跑。
+
+## 外部 API 出画通道已移除（2026-11-01）
+
+数字人出画**只有本机 MiniMax H3 一条路**：
+
+- 云端 H3（官方 API）已从 CLI 与代码里去掉，传 `--backend cloud-h3` 会直接报错退出
+- token01 中转更早就移除了
+- 保留的云端能力只剩两样非视频用途：**换形象时的定妆照生图**（¥0.025/张）与**豆包 TTS**（可选，默认走本机 VoxCPM）

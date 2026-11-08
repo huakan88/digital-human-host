@@ -17,13 +17,16 @@
 用法：
   python make_host_wrap.py --project <数字人工程> --koubo <koubo 工程> --intro 12 --outro 9
 """
+import sys
 import argparse
 import json
 import shutil
 import subprocess
 from pathlib import Path
 
-W, H, FPS = 1080, 1920, 30
+WIDE = False   # argparse 解析后设置
+# --wide：切横版窗口用 1920×1080（build_media 也要用 --wide 出主画面）
+W, H, FPS = 1080, 1920, 30   # main() 里按 --wide 改
 
 
 def dur(p):
@@ -50,16 +53,22 @@ def main():
     ap.add_argument("--intro", type=float, default=12)
     ap.add_argument("--outro", type=float, default=9)
     ap.add_argument("--windows", default="", help='多窗口："0-8.65,32.2-42.5"（给了就用它，忽略 intro/outro）')
+    ap.add_argument("--wide", action="store_true", help="横版：窗口切 1920x1080")
     ap.add_argument("--host-segs", default="", help='按段 id 定窗口，如 "s1,s2,s8,s9,s15,s16"；'
                                                   '连续段自动并成一个窗口，时间取自 public/timeline.json（精确）')
     a = ap.parse_args()
+    global W, H
+    if a.wide:
+        W, H = 1920, 1080
 
     P = Path(a.project).resolve()
     K = Path(a.koubo).resolve()
     main_mp4 = P / "public" / "main.mp4"
     narr = P / "narration.wav"
     tl = P / "edit" / "src" / "tl.json"
-    for f in (main_mp4, narr, tl):
+    # --host-segs 走 public/timeline.json，不再需要 edit/src/tl.json（老依赖）
+    need = [main_mp4, narr] if a.host_segs.strip() else [main_mp4, narr, tl]
+    for f in need:
         if not f.exists():
             raise SystemExit(f"缺文件：{f}")
 
@@ -118,7 +127,15 @@ def main():
     print("✓ host.json 已写")
 
     # 分段表：给 koubo 排 beats 用
-    data = json.loads(tl.read_text(encoding="utf-8"))
+    # 优先用 build_media 产出的 public/timeline.json（帧栅格，28 段就 28 段）；
+    # edit/src/tl.json 是旧的对齐结果，换稿后不会自动更新，踩过：episode.json 只有 20 段
+    _tlp = P / "public" / "timeline.json"
+    if _tlp.exists():
+        rows = json.loads(_tlp.read_text(encoding="utf-8"))
+        data = {"segs": [{"start": x["start"], "end": x["end"]} for x in rows]}
+        print(f"· episode 用 public/timeline.json（{len(rows)} 段）")
+    else:
+        data = json.loads(tl.read_text(encoding="utf-8"))
     S = json.loads((P / "script.json").read_text(encoding="utf-8"))
     segs = []
     for i, seg in enumerate(data["segs"]):

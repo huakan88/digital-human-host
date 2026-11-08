@@ -15,7 +15,9 @@ from pathlib import Path
 PROJ = Path(os.environ.get("HK_PROJECT", Path.cwd())).resolve()
 SKILL = Path(os.environ.get("HK_PRESET", Path(__file__).resolve().parent.parent)).resolve()
 P = json.loads((SKILL / "persona" / "persona.json").read_text(encoding="utf-8"))
-REF = P["renoise"]["reference_material"]
+# HK_LOOK 可以临时换基准图（试不同定妆照时很有用，不动 persona）：
+#   HK_LOOK=assets/host_me_photo.jpg python make_tasks.py
+REF = os.environ.get("HK_LOOK") or P["renoise"]["reference_material"]
 
 # 提示词模板全部来自 persona.json（主持预设的唯一真相）。
 # 以前把主持外貌写死在这里，导致换预设时 H3 跟着「文字」而不是「参考图」生成，
@@ -23,9 +25,15 @@ REF = P["renoise"]["reference_material"]
 LOOK = ""
 
 
-def build_prompt(P, big):
-    """用 persona 的 prompt_template / prompt_big 组装 H3 提示词。"""
-    base = (P.get("prompt_big") if big else None) or P["prompt_template"]
+def build_prompt(P, big, size=None):
+    """用 persona 的 prompt_template / prompt_big 组装 H3 提示词。
+    横版（宽>高）优先用 *_wide 那套模板。"""
+    wide = bool(size) and size[0] > size[1]
+    base = None
+    if wide:
+        base = (P.get("prompt_big_wide") if big else None) or P.get("prompt_template_wide")
+    if not base:
+        base = (P.get("prompt_big") if big else None) or P["prompt_template"]
     acts = P.get("acts", {})
     return base.format(purpose="explaining clearly", act=acts.get("full", "warm eye contact"))
 
@@ -41,12 +49,13 @@ def main():
         if dur > max_sec:
             print(f"! {s['id']} 约 {n/cps+1:.0f} 秒，超过 H3 单段上限 {max_sec} 秒，拆成两段")
         tasks.append({
-            "model": P["model"]["name"], "kind": "video", "ratio": "9:16",
+            "model": P["model"]["name"], "kind": "video",
+            "ratio": "16:9" if (s.get("size") or [576, 1024])[0] > (s.get("size") or [576, 1024])[1] else "9:16",
             "resolution": "720p", "duration": dur, "label": f"口播 {s['id']}",
             "idempotencyKey": f"dh-cat-{s['id']}-v1",
             "references": [{"ref": REF, "role": "reference_image"}],
-            "prompt": build_prompt(P, bool(s.get("big"))),
-            "prompt_override": build_prompt(P, bool(s.get("big"))),
+            "prompt": build_prompt(P, bool(s.get("big")), s.get("size")),
+            "prompt_override": build_prompt(P, bool(s.get("big")), s.get("size")),
             # 出画分辨率：统一 576x1024。低分辨率（384x576）会让脸崩、鼻头变大、口型发糊。
             "size": s.get("size") or [576, 1024],
             "line": s["t"], "cat": s.get("cat", ""), "card": s.get("card", ""),

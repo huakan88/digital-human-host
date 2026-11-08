@@ -3,13 +3,13 @@
   "tts_backend": "voxcpm",
   "tts_voice": "female-shaonv",
   "tts_model": "speech-2.8-hd",
-  "tts_speed": 0.85,
+  "tts_speed": 1.2,
   "voxcpm_base": "http://127.0.0.1:8808/v1",
   "voxcpm_voice": "huakan",
+  "video_backend": "local",
+  "_video_backend": "只允许本机 MiniMax H3 出画；外部 API 出画通道 2026-11-01 移除",
   "minimax_base": "https://api.minimaxi.com/v1",
   "image_model": "image-01",
-  "cloud_h3_model": "MiniMax-H3-Highspeed",
-  "cloud_h3_resolution": "768P",
   "h3_root": "E:/minimax H3",
   "width": 576,
   "height": 1024,
@@ -25,5 +25,6 @@
   },
   "h3_low_vram": false,
   "h3_steps": 4,
-  "merge_seconds": 13
+  "merge_seconds": 13,
+  "_tts_speed": "1.2 = 用户定的默认语速（配合 huakan-tts --tight）"
 }
